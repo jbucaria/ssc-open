@@ -1,5 +1,6 @@
+/* eslint-disable react/prop-types */
 // src/context/AuthProvider.js
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from '@/firebaseConfig'
 import { AuthContext } from './AuthContext'

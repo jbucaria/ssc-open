@@ -1,5 +1,5 @@
 // src/pages/Login.jsx
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ThemedView,
@@ -7,7 +7,6 @@ import {
   ThemedButton,
 } from '@/components/ThemedComponents'
 import {
-  getAuth,
   signInWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
@@ -55,7 +54,7 @@ const Login = () => {
       setShowMembershipModal(false)
       navigate('/home')
     } else {
-      Alert.alert(
+      window.alert(
         'Invalid Code',
         'The membership code you entered is incorrect.'
       )

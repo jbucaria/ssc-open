@@ -5,8 +5,9 @@ import {
   ThemedView,
   ThemedText,
   ThemedButton,
+  ThemedHeader,
 } from '@/components/ThemedComponents'
-import AppHeader from '@/components/AppHeader'
+import logo from '@/assets/logo.png'
 
 const NavigationDrawer = ({ open, onClose, navigateTo }) => {
   return (
@@ -71,8 +72,28 @@ const Home = () => {
   }
 
   return (
-    <ThemedView styleType="success" className="min-h-screen relative">
-      <AppHeader onMenuClick={toggleDrawer} />
+    <ThemedView
+      styleType="default"
+      className="min-h-screen bg-gray-50 relative"
+    >
+      <ThemedHeader
+        styleType="primary"
+        className="flex items-center justify-between h-40 relative"
+      >
+        <div className="flex items-center space-x-4">
+          <ThemedButton styleType="secondary" onClick={toggleDrawer}>
+            Menu
+          </ThemedButton>
+          <img
+            src={logo}
+            alt="Seven Springs CrossFit Logo"
+            className="h-16 w-16 object-cover opacity-20"
+          />
+        </div>
+        <ThemedText as="h1" styleType="primary" className="text-4xl font-bold">
+          Seven Springs CrossFit
+        </ThemedText>
+      </ThemedHeader>
       <div className="p-4">
         {/* Benchmark Workout Card */}
         <section className="mb-6">
@@ -97,7 +118,7 @@ const Home = () => {
               <br />
               This is an official Mayhem Benchmark workout, so get after it!
             </ThemedText>
-            <ThemedText as="p" styleType="gold" className="mb-4">
+            <ThemedText as="p" styleType="default" className="mb-4">
               <strong>Independence (&quot;Diane&quot;)</strong>
               <br />
               21-15-9
@@ -129,13 +150,13 @@ const Home = () => {
         <section className="mb-6">
           <ThemedText
             as="h2"
-            styleType="prominent"
+            styleType="secondary"
             className="text-2xl font-bold mb-2"
           >
             Enter Your Score
           </ThemedText>
           <ThemedButton
-            styleType="danger"
+            styleType="secondary"
             onClick={goToScoreEntry}
             className="w-full"
           >
