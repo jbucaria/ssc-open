@@ -1,3 +1,4 @@
+// src/pages/ScoreEntry.jsx
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
@@ -15,6 +16,7 @@ import {
   query,
   where,
   getDocs,
+  getDoc,
 } from 'firebase/firestore'
 
 // Simple helper to format time as hh:mm
@@ -38,9 +40,29 @@ const ScoreEntry = () => {
   const [submittedScore, setSubmittedScore] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
   const [scoreDocId, setScoreDocId] = useState(null)
+  const [userDetails, setUserDetails] = useState(null)
   const navigate = useNavigate()
 
-  // Fetch any existing score for the current user and workout
+  // Fetch current user's details from Firestore.
+  useEffect(() => {
+    const fetchUserDetails = async () => {
+      if (!auth.currentUser) return
+      try {
+        const userRef = doc(firestore, 'users', auth.currentUser.uid)
+        const userSnap = await getDoc(userRef)
+        if (userSnap.exists()) {
+          setUserDetails(userSnap.data())
+        } else {
+          setUserDetails(null)
+        }
+      } catch (err) {
+        console.error('Error fetching user details:', err)
+      }
+    }
+    fetchUserDetails()
+  }, [])
+
+  // Fetch any existing score for the current user and workout.
   useEffect(() => {
     const fetchScore = async () => {
       if (!auth.currentUser) return
@@ -52,12 +74,12 @@ const ScoreEntry = () => {
       )
       const querySnapshot = await getDocs(q)
       if (!querySnapshot.empty) {
-        // Assuming one score per workout per user
+        // Assuming one score per workout per user.
         const docSnap = querySnapshot.docs[0]
         setScoreDocId(docSnap.id)
         const data = docSnap.data()
         setSubmittedScore(data)
-        // Pre-fill the form with existing data
+        // Pre-fill the form with existing data.
         setScaling(data.scaling || 'RX')
         setCompleted(data.completed)
         setFinishTime(data.finishTime || '')
@@ -72,7 +94,13 @@ const ScoreEntry = () => {
   const handleSubmit = async e => {
     e.preventDefault()
 
-    // Prepare the score data
+    // Ensure userDetails is loaded.
+    if (!userDetails) {
+      setError('User details not loaded. Please try again.')
+      return
+    }
+
+    // Prepare the score data.
     const scoreData = {
       workoutName,
       scaling,
@@ -81,21 +109,21 @@ const ScoreEntry = () => {
       reps: completed ? null : reps,
       tiebreakTime: tiebreakTime || null,
       userId: auth.currentUser?.uid,
-      displayName: auth.currentUser?.displayName, // add this line
-      sex: auth.currentUser?.sex,
-      athleteCategory: auth.currentUser?.athleteCategory,
+      displayName: userDetails.displayName, // now coming from userDetails
+      sex: userDetails.sex, // must be non-empty per your requirement
+      athleteCategory: userDetails.athleteCategory, // must be non-empty
       createdAt: serverTimestamp(),
     }
 
     try {
       if (submittedScore && scoreDocId && isEditing) {
-        // Update existing document
+        // Update existing document.
         const scoreDocRef = doc(firestore, 'scores', scoreDocId)
         await updateDoc(scoreDocRef, scoreData)
         setSubmittedScore({ ...submittedScore, ...scoreData })
         setIsEditing(false)
       } else if (!submittedScore) {
-        // Create new document
+        // Create new document.
         const docRef = await addDoc(collection(firestore, 'scores'), scoreData)
         setScoreDocId(docRef.id)
         setSubmittedScore(scoreData)
@@ -107,7 +135,7 @@ const ScoreEntry = () => {
     }
   }
 
-  // Render the form if no score exists or if editing; otherwise, display the submitted score
+  // Render the form if no score exists or if editing; otherwise, display the submitted score.
   return (
     <ThemedView styleType="default" className="min-h-screen p-4">
       <ThemedText

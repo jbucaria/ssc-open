@@ -14,6 +14,7 @@ import {
   updateDoc,
   doc,
   getDoc,
+  onSnapshot,
 } from 'firebase/firestore'
 
 // Helper: convert a time string (hh:mm) to total minutes.
@@ -136,11 +137,11 @@ const Leaderboard = () => {
             if (!aggregated[score.userId]) {
               aggregated[score.userId] = {
                 userId: score.userId,
-                displayName: score.displayName || 'Anonymous',
-                athleteCategory: score.athleteCategory || 'Unknown',
+                displayName: '', // To be updated from user document.
+                athleteCategory: '',
                 totalPoints: 0,
                 perWorkout: {},
-                photoURL: null, // We'll update this from the user document.
+                photoURL: null, // To be updated from user document.
               }
             }
           })
@@ -159,16 +160,15 @@ const Leaderboard = () => {
           // Sort by totalPoints (lower is better).
           aggregatedArray.sort((a, b) => a.totalPoints - b.totalPoints)
 
-          // Fetch each user's profile from the "users" collection to update photoURL.
+          // For each aggregated user, fetch their profile from the "users" collection.
           const userPromises = aggregatedArray.map(async user => {
             const userDocRef = doc(firestore, 'users', user.userId)
             const userSnap = await getDoc(userDocRef)
             if (userSnap.exists()) {
               const data = userSnap.data()
+              user.displayName = data.displayName || 'Anonymous'
+              user.athleteCategory = data.athleteCategory || 'Unknown'
               user.photoURL = data.photoURL || null
-              user.displayName = data.displayName || user.displayName
-              user.athleteCategory =
-                data.athleteCategory || user.athleteCategory
             }
           })
           await Promise.all(userPromises)
@@ -403,7 +403,7 @@ const Leaderboard = () => {
                       <img
                         src={score.photoURL}
                         alt={score.displayName}
-                        className="w-10 h-10 rounded-full object-cover mx-auto"
+                        className="w-10 h-10 rounded-full object-contain mx-auto"
                       />
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center mx-auto">
@@ -468,7 +468,7 @@ const Leaderboard = () => {
                       <img
                         src={score.photoURL}
                         alt={score.displayName}
-                        className="w-10 h-10 rounded-full object-cover mx-auto"
+                        className="w-10 h-10 rounded-full object-contain mx-auto"
                       />
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center mx-auto">

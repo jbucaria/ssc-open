@@ -40,21 +40,6 @@ function randomTime(minMinutes, maxMinutes) {
 // Test Data Arrays
 //
 
-// Fixed test user: John Bucaria with complete additional details.
-const johnBucaria = {
-  uid: 'MUwCQD7gGaZ4oESe9FLEuOPGn5z1',
-  displayName: 'John Bucaria',
-  email: 'ember1015@gmail.com',
-  sex: 'male', // stored in lowercase
-  athleteCategory: 'Open', // Title Case
-  dob: '2004-10-24',
-  isMember: true,
-  photoURL:
-    'https://lh3.googleusercontent.com/a/ACg8ocK9Xor4VrsuJeuorIDWc5p3JTcE2j9LUCNdar2dsibFKoLhmMITSw=s96-c',
-  profession: 'Educator',
-  createdAt: serverTimestamp(),
-}
-
 // Additional test users.
 const otherNames = [
   'Alice',
@@ -105,7 +90,7 @@ const scalings = ['RX', 'Scaled', 'Foundations']
 //
 // Create Test Users Array
 //
-const testUsers = [johnBucaria]
+const testUsers = []
 
 otherNames.forEach((name, index) => {
   // Generate a uid that doesn't conflict with John's.

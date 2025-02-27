@@ -27,10 +27,10 @@ const MyStandings = () => {
   const currentUser = auth.currentUser
   const navigate = useNavigate()
 
-  // Aggregate score data from scores collection.
   useEffect(() => {
     if (!currentUser) return
     const scoresRef = collection(firestore, 'scores')
+    // Listen to all completed scores for our available workouts.
     const q = query(
       scoresRef,
       where('workoutName', 'in', availableWorkouts),
@@ -40,22 +40,19 @@ const MyStandings = () => {
       q,
       async querySnapshot => {
         try {
-          const allScores = querySnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-          }))
-          // Group scores by userId.
+          // Aggregate scores by user.
           const aggregated = {}
-          allScores.forEach(score => {
+          querySnapshot.docs.forEach(docSnap => {
+            const score = docSnap.data()
             if (!aggregated[score.userId]) {
+              // Initialize with empty user fields (to be filled later).
               aggregated[score.userId] = {
                 userId: score.userId,
-                // We'll override these later with real user data.
-                displayName: '',
-                athleteCategory: '',
                 totalPoints: 0,
                 perWorkout: {},
-                photoURL: null,
+                displayName: '', // Will come from the user document.
+                athleteCategory: '', // Will come from the user document.
+                photoURL: null, // Will come from the user document.
               }
             }
             aggregated[score.userId].totalPoints += score.rankingPoints || 0
@@ -64,18 +61,19 @@ const MyStandings = () => {
             } (${score.finishTime || `${score.reps} reps`})`
           })
           let aggregatedArray = Object.values(aggregated)
-          // Sort aggregated users by totalPoints (lower is better).
+          // Sort users by total points (lower is better).
           aggregatedArray.sort((a, b) => a.totalPoints - b.totalPoints)
 
-          // For each aggregated user, fetch their profile to update displayName, athleteCategory, and photoURL.
+          // For each aggregated user, fetch the latest profile from the "users" collection.
           const userPromises = aggregatedArray.map(async user => {
             const userDocRef = doc(firestore, 'users', user.userId)
             const userSnap = await getDoc(userDocRef)
             if (userSnap.exists()) {
               const data = userSnap.data()
-              user.displayName = data.displayName || 'Anonymous'
-              user.athleteCategory = data.athleteCategory || 'Unknown'
-              user.photoURL = data.photoURL || null
+              // Always use the profile info from the user document.
+              user.displayName = data.displayName
+              user.athleteCategory = data.athleteCategory
+              user.photoURL = data.photoURL
             }
           })
           await Promise.all(userPromises)
@@ -107,21 +105,20 @@ const MyStandings = () => {
     return unsubscribe
   }, [currentUser])
 
-  // Listen to current user's document to keep profile info updated (like in Settings).
+  // Also keep current user's profile info updated in real time.
   useEffect(() => {
     if (!currentUser) return
     const userDocRef = doc(firestore, 'users', currentUser.uid)
     const unsubscribeUser = onSnapshot(userDocRef, docSnap => {
       if (docSnap.exists()) {
         const data = docSnap.data()
-        // Update the current user's profile info in myStandings.
         setMyStandings(prev =>
           prev
             ? {
                 ...prev,
-                displayName: data.displayName || prev.displayName,
-                athleteCategory: data.athleteCategory || prev.athleteCategory,
-                photoURL: data.photoURL || null,
+                displayName: data.displayName,
+                athleteCategory: data.athleteCategory,
+                photoURL: data.photoURL,
               }
             : prev
         )
