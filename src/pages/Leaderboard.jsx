@@ -37,7 +37,6 @@ const Leaderboard = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // Fetch scores from Firestore based on filters.
   useEffect(() => {
     const fetchScores = async () => {
       setLoading(true)
@@ -47,7 +46,7 @@ const Leaderboard = () => {
         let q
 
         if (workoutFilter === 'Overall') {
-          // For overall leaderboard, fetch scores for all available workouts.
+          // Overall branch: fetch scores for all available workouts.
           q = query(scoresRef, where('workoutName', 'in', availableWorkouts))
           // Only include scores for users who completed the workout.
           q = query(q, where('completed', '==', true))
@@ -57,8 +56,9 @@ const Leaderboard = () => {
             ...doc.data(),
           }))
 
-          // Optionally, apply additional filters (sex, age group, scaling) if not "All"
+          // Client-side filtering for additional filters.
           if (sexFilter !== 'All') {
+            // Convert both stored and filter value to lowercase.
             fetchedScores = fetchedScores.filter(
               score =>
                 score.sex && score.sex.toLowerCase() === sexFilter.toLowerCase()
@@ -76,7 +76,7 @@ const Leaderboard = () => {
           }
 
           // Group scores by userId and sum their rankingPoints.
-          // Here we assume each score document includes a field `rankingPoints`.
+          // Assumes each individual score document includes a field `rankingPoints`.
           const aggregated = {}
           fetchedScores.forEach(score => {
             if (!aggregated[score.userId]) {
@@ -92,43 +92,62 @@ const Leaderboard = () => {
           })
           // Convert aggregated object to array.
           fetchedScores = Object.values(aggregated)
-          // Sort by totalPoints (lower is better).
+          // Sort by totalPoints (lower total is better).
           fetchedScores.sort((a, b) => a.totalPoints - b.totalPoints)
         } else {
-          // For a specific workout, start with filtering by that workout.
-          q = query(scoresRef, where('workoutName', '==', workoutFilter))
-          // Only include completed workouts.
-          q = query(q, where('completed', '==', true))
-          // Apply additional filters if needed.
+          // Specific workout branch.
+          // Build an array of constraints.
+          const constraints = [
+            where('workoutName', '==', workoutFilter),
+            where('completed', '==', true),
+          ]
+          // For Firestore queries, ensure that the stored value matches exactly.
           if (sexFilter !== 'All') {
-            q = query(q, where('sex', '==', sexFilter))
+            // Assuming data is normalized to lowercase.
+            constraints.push(where('sex', '==', sexFilter.toLowerCase()))
           }
           if (ageGroupFilter !== 'Overall') {
-            q = query(q, where('athleteCategory', '==', ageGroupFilter))
+            constraints.push(where('athleteCategory', '==', ageGroupFilter))
           }
           if (scalingFilter !== 'All') {
-            q = query(q, where('scaling', '==', scalingFilter))
+            constraints.push(where('scaling', '==', scalingFilter))
           }
-          // For time-based workouts, order by finishTime (ascending)
-          q = query(q, orderBy('finishTime', 'asc'))
+          // Note: We won't add orderBy here because we'll do a custom sort after fetching.
+          q = query(scoresRef, ...constraints)
           const querySnapshot = await getDocs(q)
           fetchedScores = querySnapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data(),
           }))
 
-          // Sort scores by finishTime (converted to minutes)
-          fetchedScores.sort(
-            (a, b) => timeToMinutes(a.finishTime) - timeToMinutes(b.finishTime)
-          )
+          // Custom sorting:
+          // Define our scaling order hierarchy.
+          const scalingOrder = { RX: 1, Scaled: 2, Foundations: 3 }
+          fetchedScores.sort((a, b) => {
+            const orderA = scalingOrder[a.scaling] || 99
+            const orderB = scalingOrder[b.scaling] || 99
+            if (orderA !== orderB) {
+              return orderA - orderB
+            }
+            // If scaling is the same, sort by finish time.
+            const finishA = timeToMinutes(a.finishTime)
+            const finishB = timeToMinutes(b.finishTime)
+            if (finishA !== finishB) {
+              return finishA - finishB
+            }
+            // If finish times are tied, compare tiebreak times.
+            const tbA = timeToMinutes(a.tiebreakTime)
+            const tbB = timeToMinutes(b.tiebreakTime)
+            return tbA - tbB
+          })
 
-          // Assign ranking points (rank 1 for first, etc.)
+          // Assign ranking points: first gets 1, second gets 2, etc.
           fetchedScores = fetchedScores.map((score, index) => ({
             ...score,
             rankingPoints: index + 1,
           }))
 
-          // Update each individual score's ranking points in Firestore.
+          // Update each score's ranking points in Firestore.
           fetchedScores.forEach(async score => {
             try {
               const scoreDocRef = doc(firestore, 'scores', score.id)
@@ -149,6 +168,7 @@ const Leaderboard = () => {
       }
       setLoading(false)
     }
+
     fetchScores()
   }, [sexFilter, ageGroupFilter, scalingFilter, workoutFilter])
 
@@ -191,8 +211,9 @@ const Leaderboard = () => {
             className="p-2 border rounded w-full"
           >
             <option value="All">All</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
+            {/* Ensure these match the normalized data in Firestore */}
+            <option value="male">Male</option>
+            <option value="female">Female</option>
           </select>
         </div>
         <div>
