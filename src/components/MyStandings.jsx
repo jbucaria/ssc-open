@@ -14,6 +14,7 @@ import {
   getDocs,
   onSnapshot,
   doc,
+  getDoc,
 } from 'firebase/firestore'
 
 // Define the available workouts in the desired order.
@@ -26,6 +27,7 @@ const MyStandings = () => {
   const currentUser = auth.currentUser
   const navigate = useNavigate()
 
+  // Aggregate score data from scores collection.
   useEffect(() => {
     if (!currentUser) return
     const scoresRef = collection(firestore, 'scores')
@@ -36,7 +38,7 @@ const MyStandings = () => {
     )
     const unsubscribe = onSnapshot(
       q,
-      querySnapshot => {
+      async querySnapshot => {
         try {
           const allScores = querySnapshot.docs.map(doc => ({
             id: doc.id,
@@ -48,11 +50,12 @@ const MyStandings = () => {
             if (!aggregated[score.userId]) {
               aggregated[score.userId] = {
                 userId: score.userId,
-                displayName: score.displayName || 'Anonymous',
-                athleteCategory: score.athleteCategory || 'Unknown',
+                // We'll override these later with real user data.
+                displayName: '',
+                athleteCategory: '',
                 totalPoints: 0,
                 perWorkout: {},
-                photoURL: score.photoURL || null,
+                photoURL: null,
               }
             }
             aggregated[score.userId].totalPoints += score.rankingPoints || 0
@@ -60,9 +63,23 @@ const MyStandings = () => {
               score.rankingPoints
             } (${score.finishTime || `${score.reps} reps`})`
           })
-          const aggregatedArray = Object.values(aggregated)
+          let aggregatedArray = Object.values(aggregated)
           // Sort aggregated users by totalPoints (lower is better).
           aggregatedArray.sort((a, b) => a.totalPoints - b.totalPoints)
+
+          // For each aggregated user, fetch their profile to update displayName, athleteCategory, and photoURL.
+          const userPromises = aggregatedArray.map(async user => {
+            const userDocRef = doc(firestore, 'users', user.userId)
+            const userSnap = await getDoc(userDocRef)
+            if (userSnap.exists()) {
+              const data = userSnap.data()
+              user.displayName = data.displayName || 'Anonymous'
+              user.athleteCategory = data.athleteCategory || 'Unknown'
+              user.photoURL = data.photoURL || null
+            }
+          })
+          await Promise.all(userPromises)
+
           // Determine the overall placement of the current user.
           const placement =
             aggregatedArray.findIndex(user => user.userId === currentUser.uid) +
@@ -90,16 +107,23 @@ const MyStandings = () => {
     return unsubscribe
   }, [currentUser])
 
-  // New useEffect: Listen to the current user's document to update photoURL.
+  // Listen to current user's document to keep profile info updated (like in Settings).
   useEffect(() => {
     if (!currentUser) return
     const userDocRef = doc(firestore, 'users', currentUser.uid)
     const unsubscribeUser = onSnapshot(userDocRef, docSnap => {
       if (docSnap.exists()) {
-        const userData = docSnap.data()
-        // Update myStandings with the latest photoURL if available.
+        const data = docSnap.data()
+        // Update the current user's profile info in myStandings.
         setMyStandings(prev =>
-          prev ? { ...prev, photoURL: userData.photoURL } : prev
+          prev
+            ? {
+                ...prev,
+                displayName: data.displayName || prev.displayName,
+                athleteCategory: data.athleteCategory || prev.athleteCategory,
+                photoURL: data.photoURL || null,
+              }
+            : prev
         )
       }
     })
@@ -166,7 +190,7 @@ const MyStandings = () => {
           <img
             src={myStandings.photoURL}
             alt={myStandings.displayName}
-            className="w-16 h-16 rounded-full object-cover"
+            className="w-16 h-16 rounded-full object-contain"
           />
         ) : (
           <div className="w-16 h-16 rounded-full bg-gray-300 flex items-center justify-center">

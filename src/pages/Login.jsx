@@ -15,7 +15,7 @@ import {
 } from 'firebase/auth'
 import { auth, firestore } from '@/firebaseConfig'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
-import logo from '@/assets/logo.png'
+import logo from '@/assets/logo1.png'
 
 const MEMBERSHIP_CODE = '7SCF2023' // Replace with your desired membership code
 
