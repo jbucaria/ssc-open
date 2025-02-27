@@ -51,11 +51,10 @@ const Leaderboard = () => {
       try {
         const scoresRef = collection(firestore, 'scores')
         let fetchedScores = []
-        let q
 
         if (workoutFilter === 'Overall') {
-          // Overall branch: fetch scores for all available workouts that are completed.
-          q = query(
+          console.log('Entering Overall branch')
+          const q = query(
             scoresRef,
             where('workoutName', 'in', availableWorkouts),
             where('completed', '==', true)
@@ -66,7 +65,7 @@ const Leaderboard = () => {
             ...doc.data(),
           }))
 
-          // Client-side filtering.
+          // Client-side filtering
           if (sexFilter !== 'All') {
             allScores = allScores.filter(
               score =>
@@ -83,8 +82,9 @@ const Leaderboard = () => {
               score => score.scaling === scalingFilter
             )
           }
+          console.log('Filtered All Scores:', allScores)
 
-          // For each workout, compute placements.
+          // Per-workout rankings
           const perWorkoutRankings = {}
           availableWorkouts.forEach(workout => {
             const workoutScores = allScores.filter(
@@ -92,7 +92,6 @@ const Leaderboard = () => {
             )
             let sorted = []
             if (workout === '25.2') {
-              // For 25.2 (reps-based), sort completed scores by finishTime and non-completed by reps.
               const completedScores = workoutScores.filter(s => s.completed)
               const nonCompletedScores = workoutScores.filter(s => !s.completed)
               completedScores.sort(
@@ -102,7 +101,6 @@ const Leaderboard = () => {
               nonCompletedScores.sort((a, b) => b.reps - a.reps)
               sorted = [...completedScores, ...nonCompletedScores]
             } else {
-              // For time-based workouts (25.1, 25.3), sort by scaling, finishTime, then tiebreak.
               const scalingOrder = { RX: 1, Scaled: 2, Foundations: 3 }
               sorted = [...workoutScores].sort((a, b) => {
                 const orderA = scalingOrder[a.scaling] || 99
@@ -116,7 +114,6 @@ const Leaderboard = () => {
                 return tbA - tbB
               })
             }
-            // Assign placement and rankingPoints.
             perWorkoutRankings[workout] = sorted.map((score, index) => ({
               userId: score.userId,
               placement: index + 1,
@@ -130,17 +127,17 @@ const Leaderboard = () => {
             }))
           })
 
-          // Aggregate scores by user.
+          // Aggregate scores
           const aggregated = {}
           allScores.forEach(score => {
             if (!aggregated[score.userId]) {
               aggregated[score.userId] = {
                 userId: score.userId,
-                displayName: '', // To be updated from user document.
+                displayName: '',
                 athleteCategory: '',
                 totalPoints: 0,
                 perWorkout: {},
-                photoURL: null, // To be updated from user document.
+                photoURL: null,
               }
             }
           })
@@ -156,10 +153,9 @@ const Leaderboard = () => {
             })
           })
           let aggregatedArray = Object.values(aggregated)
-          // Sort by totalPoints (lower is better).
           aggregatedArray.sort((a, b) => a.totalPoints - b.totalPoints)
 
-          // For each aggregated user, fetch their profile from the "users" collection.
+          // Fetch user profiles
           const userPromises = aggregatedArray.map(async user => {
             const userDocRef = doc(firestore, 'users', user.userId)
             const userSnap = await getDoc(userDocRef)
@@ -172,9 +168,10 @@ const Leaderboard = () => {
           })
           await Promise.all(userPromises)
 
+          console.log('Setting scores for Overall:', aggregatedArray)
           setScores(aggregatedArray)
         } else {
-          // Specific workout branch.
+          console.log('Entering specific workout branch:', workoutFilter)
           let constraints = [where('workoutName', '==', workoutFilter)]
           if (workoutFilter !== '25.2') {
             constraints.push(where('completed', '==', true))
@@ -188,7 +185,7 @@ const Leaderboard = () => {
           if (scalingFilter !== 'All') {
             constraints.push(where('scaling', '==', scalingFilter))
           }
-          q = query(collection(firestore, 'scores'), ...constraints)
+          const q = query(scoresRef, ...constraints)
           const querySnapshot = await getDocs(q)
           fetchedScores = querySnapshot.docs.map(doc => ({
             id: doc.id,
@@ -196,7 +193,6 @@ const Leaderboard = () => {
           }))
 
           if (workoutFilter === '25.2') {
-            // For 25.2 (reps-based): sort completed scores by finishTime and non-completed by reps.
             const completedScores = fetchedScores.filter(s => s.completed)
             const nonCompletedScores = fetchedScores.filter(s => !s.completed)
             completedScores.sort(
@@ -206,10 +202,12 @@ const Leaderboard = () => {
             nonCompletedScores.sort((a, b) => b.reps - a.reps)
             fetchedScores = [...completedScores, ...nonCompletedScores]
           } else if (workoutFilter === '25.1') {
-            // For 25.1 (total reps workout), sort by reps in descending order (more reps is better) with no tiebreak.
             fetchedScores.sort((a, b) => b.reps - a.reps)
+            fetchedScores = fetchedScores.map(score => {
+              const { rounds, extraReps } = computeRoundsAndReps25_1(score.reps)
+              return { ...score, rounds, extraReps }
+            })
           } else {
-            // For 25.3 (time-based workout), sort by scaling, finishTime, then tiebreak.
             const scalingOrder = { RX: 1, Scaled: 2, Foundations: 3 }
             fetchedScores.sort((a, b) => {
               const orderA = scalingOrder[a.scaling] || 99
@@ -228,19 +226,35 @@ const Leaderboard = () => {
             ...score,
             rankingPoints: index + 1,
           }))
-          fetchedScores.forEach(async score => {
-            try {
-              const scoreDocRef = doc(firestore, 'scores', score.id)
-              await updateDoc(scoreDocRef, {
-                rankingPoints: score.rankingPoints,
-              })
-            } catch (err) {
-              console.error(`Error updating points for score ${score.id}:`, err)
+
+          // Fetch user data for each score
+          const userPromises = fetchedScores.map(async score => {
+            const userDocRef = doc(firestore, 'users', score.userId)
+            const userSnap = await getDoc(userDocRef)
+            if (userSnap.exists()) {
+              const userData = userSnap.data()
+              score.photoURL = userData.photoURL || null
+              // Ensure displayName is consistent
+              score.displayName =
+                userData.displayName || score.displayName || 'Anonymous'
             }
           })
+          await Promise.all(userPromises)
+
+          // Update Firestore asynchronously
+          fetchedScores.forEach(score => {
+            const scoreDocRef = doc(firestore, 'scores', score.id)
+            updateDoc(scoreDocRef, {
+              rankingPoints: score.rankingPoints,
+            }).catch(err =>
+              console.error(`Error updating points for score ${score.id}:`, err)
+            )
+          })
+
+          console.log('Setting scores for specific workout:', fetchedScores)
+          setScores(fetchedScores)
         }
 
-        console.log('Fetched Scores:', fetchedScores)
         setLoading(false)
       } catch (err) {
         console.error('Error fetching leaderboard:', err)
@@ -259,13 +273,20 @@ const Leaderboard = () => {
     availableWorkouts,
   ])
 
+  const computeRoundsAndReps25_1 = totalReps => {
+    // Find max complete rounds where N(3N + 5) <= totalReps
+    const N = Math.floor((-5 + Math.sqrt(25 + 12 * totalReps)) / 6) // Quadratic solution
+    const completedReps = N * (3 * N + 5)
+    const extraReps = totalReps - completedReps
+    return { rounds: N, extraReps }
+  }
   // Helper: compute initials from a name.
-  // const getInitials = name => {
-  //   if (!name) return 'NA'
-  //   const parts = name.trim().split(' ')
-  //   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-  //   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-  // }
+  const getInitials = name => {
+    if (!name) return 'NA'
+    const parts = name.trim().split(' ')
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase() // Fallback for single names
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  }
 
   if (!currentUser) {
     return (
@@ -460,7 +481,7 @@ const Leaderboard = () => {
                     <th className="border p-2">Time/Reps</th>
                   </>
                 ) : workoutFilter === '25.1' ? (
-                  <th className="border p-2">Total Reps</th>
+                  <th className="border p-2">Round + Reps</th>
                 ) : (
                   <>
                     <th className="border p-2">Scaling</th>
@@ -493,7 +514,7 @@ const Leaderboard = () => {
                             className="text-sm font-bold"
                           >
                             {score.displayName
-                              ? score.displayName.substring(0, 2).toUpperCase()
+                              ? getInitials(score.displayName)
                               : 'NA'}
                           </ThemedText>
                         </div>
@@ -501,9 +522,12 @@ const Leaderboard = () => {
                       <span>{score.displayName || 'Anonymous'}</span>
                     </div>
                   </td>
-
-                  <td className="border p-2 text-center">
-                    {score.reps || '-'}
+                  <td className="border p-2 text-center min-w-[250px]">
+                    {workoutFilter === '25.1' &&
+                    score.rounds !== undefined &&
+                    score.extraReps !== undefined
+                      ? `${score.rounds} rounds + ${score.extraReps} reps (${score.reps})`
+                      : score.reps || '-'}
                   </td>
                 </tr>
               ))}
