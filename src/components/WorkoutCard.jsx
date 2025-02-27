@@ -1,9 +1,11 @@
-import React from 'react'
-import { ThemedText } from '@/components/ThemedComponents'
+import { ThemedText, ThemedView } from '@/components/ThemedComponents'
 
 const WorkoutCard = () => {
   return (
-    <div className="bg-white shadow-md rounded-lg p-4">
+    <ThemedView
+      styleType="default"
+      className="rounded shadow-lg bg-gray-100 cursor-pointer hover:shadow-xl transition-shadow"
+    >
       <ThemedText as="p" styleType="default" className="mb-4">
         <strong>RX</strong>
         <br />
@@ -42,7 +44,7 @@ const WorkoutCard = () => {
         <br />
         Time cap: 10:00
       </ThemedText>
-    </div>
+    </ThemedView>
   )
 }
 

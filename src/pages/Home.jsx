@@ -14,7 +14,7 @@ import MyStandings from '@/components/MyStandings'
 const Home = () => {
   const [scoreSubmitted, setScoreSubmitted] = useState(false)
   const navigate = useNavigate()
-  const workoutName = 'Open Workout 25.1'
+  const workoutName = '25.1'
 
   // Check if a score already exists for this user and workout
   useEffect(() => {
@@ -35,21 +35,14 @@ const Home = () => {
   }, [workoutName])
 
   return (
-    <ThemedView styleType="default" className="min-h-screen w-screen relative">
+    <ThemedView styleType="default" className="min-h-screen w-full">
       <AppHeader navigateTo={navigate} />
-      <div className="p-4">
+      <div className="">
         <section className="mb-6">
           <MyStandings />
         </section>
         {/* Benchmark Workout Card Section */}
         <section className="mb-6">
-          <ThemedText
-            as="h2"
-            styleType="secondary"
-            className="text-2xl font-bold mb-2"
-          >
-            {workoutName}
-          </ThemedText>
           <WorkoutCard />
         </section>
 
@@ -60,7 +53,7 @@ const Home = () => {
             onClick={() => navigate('/scoreentry', { state: { workoutName } })}
             className="w-full"
           >
-            {scoreSubmitted ? 'Enter Score' : 'Score Entry'}
+            {scoreSubmitted ? 'Edit Score' : 'Enter Score'}
           </ThemedButton>
         </section>
       </div>

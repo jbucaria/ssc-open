@@ -121,7 +121,10 @@ const Settings = () => {
   }
 
   return (
-    <ThemedView styleType="default" className="min-h-screen bg-gray-50 p-4">
+    <ThemedView
+      styleType="default"
+      className="min-h-screen bg-gray-50 p-4 w-full"
+    >
       {/* Header with Back Button */}
       <header className="flex items-center justify-between mb-6">
         <ThemedButton

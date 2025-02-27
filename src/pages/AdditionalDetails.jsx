@@ -1,12 +1,14 @@
-import { useState } from 'react'
+// src/pages/AdditionalDetails.jsx
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
+import { auth, firestore, storage } from '@/firebaseConfig'
 import {
   ThemedView,
   ThemedText,
   ThemedButton,
 } from '@/components/ThemedComponents'
-import { auth, firestore } from '@/firebaseConfig'
-import { doc, setDoc } from 'firebase/firestore'
 
 // Helper functions to calculate age and determine athlete category
 function calculateAge(dob) {
@@ -42,6 +44,8 @@ const AdditionalDetails = () => {
   const [sex, setSex] = useState('')
   const [profession, setProfession] = useState('')
   const [dob, setDob] = useState('')
+  const [profilePic, setProfilePic] = useState('')
+  const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
 
@@ -58,17 +62,39 @@ const AdditionalDetails = () => {
     'First responder',
   ]
 
+  // Handle file input change to upload profile picture.
+  const handleProfilePicUpload = async e => {
+    const file = e.target.files[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const storageRef = ref(
+        storage,
+        `profilePics/${auth.currentUser.uid}/${file.name}`
+      )
+      await uploadBytes(storageRef, file)
+      const downloadURL = await getDownloadURL(storageRef)
+      setProfilePic(downloadURL)
+    } catch (err) {
+      console.error('Error uploading profile picture:', err)
+      setError('Failed to upload profile picture.')
+    }
+    setUploading(false)
+  }
+
   const handleSubmit = async e => {
     e.preventDefault()
-    if (!sex || !profession || !dob) {
-      setError('Please complete all fields')
+    if (!sex || !profession || !dob || !profilePic) {
+      setError(
+        'Please complete all fields, including adding a profile picture.'
+      )
       return
     }
     const age = calculateAge(dob)
     const athleteCategory = getAthleteCategory(age)
 
     try {
-      // Update the user document with additional details
+      // Update the user document with additional details (including the profile picture URL).
       const userRef = doc(firestore, 'users', auth.currentUser.uid)
       await setDoc(
         userRef,
@@ -77,6 +103,7 @@ const AdditionalDetails = () => {
           profession,
           dob,
           athleteCategory,
+          photoURL: profilePic,
         },
         { merge: true }
       )
@@ -159,6 +186,34 @@ const AdditionalDetails = () => {
             onChange={e => setDob(e.target.value)}
             className="p-2 border border-gray-300 rounded w-full"
           />
+        </div>
+
+        {/* Profile Picture Upload */}
+        <div>
+          <ThemedText as="label" styleType="secondary" className="block mb-1">
+            Add a Profile Picture:
+          </ThemedText>
+          {profilePic && (
+            <img
+              src={profilePic}
+              alt="Profile Preview"
+              className="w-24 h-24 rounded-full mb-2 object-contain"
+            />
+          )}
+          <input
+            type="file"
+            onChange={handleProfilePicUpload}
+            className="mb-2"
+          />
+          {uploading && (
+            <ThemedText
+              as="p"
+              styleType="default"
+              className="text-sm text-gray-500"
+            >
+              Uploading...
+            </ThemedText>
+          )}
         </div>
 
         {error && (

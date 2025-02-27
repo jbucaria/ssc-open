@@ -280,7 +280,10 @@ const Leaderboard = () => {
   }
 
   return (
-    <ThemedView styleType="default" className="min-h-screen p-4 bg-gray-100">
+    <ThemedView
+      styleType="default"
+      className="min-h-screen p-4 bg-gray-100 w-full"
+    >
       <ThemedText
         as="h1"
         styleType="primary"
@@ -377,7 +380,6 @@ const Leaderboard = () => {
                 <th className="border p-2">Rank</th>
                 <th className="border p-2">Athlete</th>
                 <th className="border p-2">Total Points</th>
-                <th className="border p-2">Photo</th>
                 {availableWorkouts.map(w => (
                   <th key={w} className="border p-2">
                     {w}
@@ -393,31 +395,32 @@ const Leaderboard = () => {
                 >
                   <td className="border p-2 text-center">{index + 1}</td>
                   <td className="border p-2">
-                    {score.displayName || 'Anonymous'}
+                    <div className="flex items-center space-x-2 min-w-[200px]">
+                      {score.photoURL ? (
+                        <img
+                          src={score.photoURL}
+                          alt={score.displayName}
+                          className="w-10 h-10 rounded-full object-contain"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
+                          <ThemedText
+                            as="p"
+                            styleType="primary"
+                            className="text-sm font-bold"
+                          >
+                            {score.displayName
+                              ? score.displayName.substring(0, 2).toUpperCase()
+                              : 'NA'}
+                          </ThemedText>
+                        </div>
+                      )}
+                      <span>{score.displayName || 'Anonymous'}</span>
+                    </div>
                   </td>
+
                   <td className="border p-2 text-center">
                     {score.totalPoints}
-                  </td>
-                  <td className="border p-2 text-center">
-                    {score.photoURL ? (
-                      <img
-                        src={score.photoURL}
-                        alt={score.displayName}
-                        className="w-10 h-10 rounded-full object-contain mx-auto"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center mx-auto">
-                        <ThemedText
-                          as="p"
-                          styleType="primary"
-                          className="text-sm font-bold"
-                        >
-                          {score.displayName
-                            ? score.displayName.substring(0, 2).toUpperCase()
-                            : 'NA'}
-                        </ThemedText>
-                      </div>
-                    )}
                   </td>
                   {availableWorkouts.map(w => (
                     <td key={w} className="border p-2 text-center">
@@ -438,8 +441,8 @@ const Leaderboard = () => {
             <thead className="bg-gray-200">
               <tr>
                 <th className="border p-2">Rank</th>
-                <th className="border p-2">Athlete</th>
                 <th className="border p-2">Photo</th>
+                <th className="border p-2">Athlete</th>
                 {workoutFilter === '25.2' ? (
                   <>
                     <th className="border p-2">Status</th>
@@ -460,9 +463,6 @@ const Leaderboard = () => {
                   className="bg-white hover:bg-gray-50"
                 >
                   <td className="border p-2 text-center">{index + 1}</td>
-                  <td className="border p-2">
-                    {score.displayName || 'Anonymous'}
-                  </td>
                   <td className="border p-2 text-center">
                     {score.photoURL ? (
                       <img
@@ -483,6 +483,9 @@ const Leaderboard = () => {
                         </ThemedText>
                       </div>
                     )}
+                  </td>
+                  <td className="border p-2">
+                    {score.displayName || 'Anonymous'}
                   </td>
                   {workoutFilter === '25.2' ? (
                     <>
