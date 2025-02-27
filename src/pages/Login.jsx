@@ -40,6 +40,7 @@ const Login = () => {
         email: user.email,
         photoURL: user.photoURL,
         isMember: false,
+        onLeaderBoard: false,
         createdAt: new Date(),
       })
       return { isMember: false }

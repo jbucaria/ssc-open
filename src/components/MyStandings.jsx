@@ -133,6 +133,7 @@ const MyStandings = () => {
                 displayName: data.displayName,
                 athleteCategory: data.athleteCategory,
                 photoURL: data.photoURL,
+
                 totalPoints: 0,
                 perWorkout: {},
               }
@@ -179,6 +180,7 @@ const MyStandings = () => {
                 displayName: data.displayName,
                 athleteCategory: data.athleteCategory,
                 photoURL: data.photoURL,
+                onLeaderBoard: data.onLeaderBoard,
               }
             : prev
         )
@@ -265,15 +267,17 @@ const MyStandings = () => {
             {myStandings.athleteCategory}
           </ThemedText>
         </div>
-        <div className="mb-4 p-4 ">
-          <ThemedText
-            as="h2"
-            styleType="primary"
-            className="text-2xl font-bold"
-          >
-            Overall: {myStandings.overallPlacement}
-          </ThemedText>
-        </div>
+        {myStandings.onLeaderBoard && (
+          <div className="mb-4 p-4">
+            <ThemedText
+              as="h2"
+              styleType="primary"
+              className="text-2xl font-bold"
+            >
+              Overall: {myStandings.overallPlacement}
+            </ThemedText>
+          </div>
+        )}
       </div>
       <div>
         <ThemedText

@@ -1,5 +1,5 @@
 // src/pages/ScoreEntry.jsx
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   ThemedView,
@@ -11,6 +11,7 @@ import {
   collection,
   addDoc,
   updateDoc,
+  deleteDoc,
   serverTimestamp,
   doc,
   query,
@@ -127,11 +128,37 @@ const ScoreEntry = () => {
         const docRef = await addDoc(collection(firestore, 'scores'), scoreData)
         setScoreDocId(docRef.id)
         setSubmittedScore(scoreData)
+        // Update the user document to set onLeaderBoard to true.
+        const userRef = doc(firestore, 'users', auth.currentUser.uid)
+        await updateDoc(userRef, { onLeaderBoard: true })
       }
       navigate('/home')
     } catch (err) {
       console.error('Error saving score:', err)
       setError('Failed to save score. Please try again.')
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!scoreDocId) return
+    const confirm = window.confirm(
+      'Are you sure you want to delete your score?'
+    )
+    if (!confirm) return
+    try {
+      // Delete the score document.
+      const scoreDocRef = doc(firestore, 'scores', scoreDocId)
+      await deleteDoc(scoreDocRef)
+      // Update the user document to set onLeaderBoard to false.
+      const userRef = doc(firestore, 'users', auth.currentUser.uid)
+      await updateDoc(userRef, { onLeaderBoard: false })
+      // Clear local state.
+      setSubmittedScore(null)
+      setScoreDocId(null)
+      navigate('/home')
+    } catch (err) {
+      console.error('Error deleting score:', err)
+      setError('Failed to delete score. Please try again.')
     }
   }
 
@@ -177,13 +204,22 @@ const ScoreEntry = () => {
               )}
             </>
           )}
-          <ThemedButton
-            styleType="primary"
-            onClick={() => setIsEditing(true)}
-            className="w-full"
-          >
-            Edit Score
-          </ThemedButton>
+          <div className="flex space-x-4">
+            <ThemedButton
+              styleType="primary"
+              onClick={() => setIsEditing(true)}
+              className="w-full"
+            >
+              Edit Score
+            </ThemedButton>
+            <ThemedButton
+              styleType="danger"
+              onClick={handleDelete}
+              className="w-full"
+            >
+              Delete Score
+            </ThemedButton>
+          </div>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
