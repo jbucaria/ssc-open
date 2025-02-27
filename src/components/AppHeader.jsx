@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import React, { useState } from 'react'
 import {
   ThemedHeader,
@@ -25,7 +26,7 @@ const AppHeader = ({ navigateTo }) => {
           className="p-2"
         >
           <svg
-            className="h-6 w-6"
+            className="h-4 w-4"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -40,7 +41,7 @@ const AppHeader = ({ navigateTo }) => {
         </ThemedButton>
 
         {/* Logo centered */}
-        <img src={logo} alt="Logo" className="h-10" />
+        <img src={logo} alt="Logo" className="h-14" />
 
         {/* Empty div for spacing on the right */}
         <div className="w-8" />

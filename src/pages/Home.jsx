@@ -9,6 +9,7 @@ import {
 } from '@/components/ThemedComponents'
 import AppHeader from '@/components/AppHeader'
 import WorkoutCard from '@/components/WorkoutCard'
+import MyStandings from '@/components/MyStandings'
 
 const Home = () => {
   const [scoreSubmitted, setScoreSubmitted] = useState(false)
@@ -37,6 +38,9 @@ const Home = () => {
     <ThemedView styleType="default" className="min-h-screen w-screen relative">
       <AppHeader navigateTo={navigate} />
       <div className="p-4">
+        <section className="mb-6">
+          <MyStandings />
+        </section>
         {/* Benchmark Workout Card Section */}
         <section className="mb-6">
           <ThemedText
@@ -56,7 +60,7 @@ const Home = () => {
             onClick={() => navigate('/scoreentry', { state: { workoutName } })}
             className="w-full"
           >
-            {scoreSubmitted ? 'Edit Score' : 'Score Entry'}
+            {scoreSubmitted ? 'Enter Score' : 'Score Entry'}
           </ThemedButton>
         </section>
       </div>
