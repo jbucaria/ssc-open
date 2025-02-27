@@ -1,4 +1,3 @@
-// src/pages/ScoreEntry.jsx
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
@@ -20,12 +19,10 @@ import {
   getDoc,
 } from 'firebase/firestore'
 
-// Simple helper to format time as hh:mm
+// Simple helper to format time as hh:mm (not used now)
 const formatTime = value => {
-  // Remove non-digit characters
   const digits = value.replace(/\D/g, '')
   if (digits.length < 3) return digits
-  // Insert colon after two digits
   return digits.slice(0, 2) + ':' + digits.slice(2, 4)
 }
 
@@ -33,10 +30,7 @@ const ScoreEntry = () => {
   const location = useLocation()
   const { workoutName } = location.state || { workoutName: 'Default Workout' }
   const [scaling, setScaling] = useState('RX')
-  const [completed, setCompleted] = useState(true)
-  const [finishTime, setFinishTime] = useState('')
   const [reps, setReps] = useState('')
-  const [tiebreakTime, setTiebreakTime] = useState('')
   const [error, setError] = useState('')
   const [submittedScore, setSubmittedScore] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
@@ -75,17 +69,12 @@ const ScoreEntry = () => {
       )
       const querySnapshot = await getDocs(q)
       if (!querySnapshot.empty) {
-        // Assuming one score per workout per user.
         const docSnap = querySnapshot.docs[0]
         setScoreDocId(docSnap.id)
         const data = docSnap.data()
         setSubmittedScore(data)
-        // Pre-fill the form with existing data.
         setScaling(data.scaling || 'RX')
-        setCompleted(data.completed)
-        setFinishTime(data.finishTime || '')
         setReps(data.reps || '')
-        setTiebreakTime(data.tiebreakTime || '')
         setIsEditing(false)
       }
     }
@@ -101,34 +90,35 @@ const ScoreEntry = () => {
       return
     }
 
-    // Prepare the score data.
+    const repsNumber = Number(reps)
+    if (isNaN(repsNumber)) {
+      setError('Please enter a valid number for reps.')
+      return
+    }
+
     const scoreData = {
       workoutName,
       scaling,
-      completed,
-      finishTime: completed ? finishTime : null,
-      reps: completed ? null : reps,
-      tiebreakTime: tiebreakTime || null,
+      completed: true,
+      reps: repsNumber,
       userId: auth.currentUser?.uid,
-      displayName: userDetails.displayName, // now coming from userDetails
-      sex: userDetails.sex, // must be non-empty per your requirement
-      athleteCategory: userDetails.athleteCategory, // must be non-empty
+      displayName: userDetails.displayName,
+      sex: userDetails.sex,
+      athleteCategory: userDetails.athleteCategory,
       createdAt: serverTimestamp(),
     }
 
     try {
       if (submittedScore && scoreDocId && isEditing) {
-        // Update existing document.
         const scoreDocRef = doc(firestore, 'scores', scoreDocId)
         await updateDoc(scoreDocRef, scoreData)
         setSubmittedScore({ ...submittedScore, ...scoreData })
         setIsEditing(false)
       } else if (!submittedScore) {
-        // Create new document.
         const docRef = await addDoc(collection(firestore, 'scores'), scoreData)
         setScoreDocId(docRef.id)
         setSubmittedScore(scoreData)
-        // Update the user document to set onLeaderBoard to true.
+        // Mark the user as on the leaderboard.
         const userRef = doc(firestore, 'users', auth.currentUser.uid)
         await updateDoc(userRef, { onLeaderBoard: true })
       }
@@ -141,18 +131,15 @@ const ScoreEntry = () => {
 
   const handleDelete = async () => {
     if (!scoreDocId) return
-    const confirm = window.confirm(
+    const confirmDelete = window.confirm(
       'Are you sure you want to delete your score?'
     )
-    if (!confirm) return
+    if (!confirmDelete) return
     try {
-      // Delete the score document.
       const scoreDocRef = doc(firestore, 'scores', scoreDocId)
       await deleteDoc(scoreDocRef)
-      // Update the user document to set onLeaderBoard to false.
       const userRef = doc(firestore, 'users', auth.currentUser.uid)
       await updateDoc(userRef, { onLeaderBoard: false })
-      // Clear local state.
       setSubmittedScore(null)
       setScoreDocId(null)
       navigate('/home')
@@ -162,7 +149,6 @@ const ScoreEntry = () => {
     }
   }
 
-  // Render the form if no score exists or if editing; otherwise, display the submitted score.
   return (
     <ThemedView styleType="default" className="min-h-screen p-4">
       <ThemedText
@@ -178,32 +164,8 @@ const ScoreEntry = () => {
             <strong>Scaling:</strong> {submittedScore.scaling}
           </ThemedText>
           <ThemedText as="p" styleType="default">
-            <strong>Completed:</strong>{' '}
-            {submittedScore.completed ? 'Yes' : 'No'}
+            <strong>Total Reps:</strong> {submittedScore.reps}
           </ThemedText>
-          {submittedScore.completed ? (
-            <>
-              <ThemedText as="p" styleType="default">
-                <strong>Finish Time:</strong> {submittedScore.finishTime}
-              </ThemedText>
-              {submittedScore.tiebreakTime && (
-                <ThemedText as="p" styleType="default">
-                  <strong>Tiebreak Time:</strong> {submittedScore.tiebreakTime}
-                </ThemedText>
-              )}
-            </>
-          ) : (
-            <>
-              <ThemedText as="p" styleType="default">
-                <strong>Reps Completed:</strong> {submittedScore.reps}
-              </ThemedText>
-              {submittedScore.tiebreakTime && (
-                <ThemedText as="p" styleType="default">
-                  <strong>Tiebreak Time:</strong> {submittedScore.tiebreakTime}
-                </ThemedText>
-              )}
-            </>
-          )}
           <div className="flex space-x-4">
             <ThemedButton
               styleType="primary"
@@ -223,7 +185,6 @@ const ScoreEntry = () => {
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Scaling selection */}
           <div>
             <ThemedText as="label" styleType="secondary" className="block mb-1">
               Select Scaling:
@@ -238,115 +199,23 @@ const ScoreEntry = () => {
               <option value="Foundations">Foundations</option>
             </select>
           </div>
-
-          {/* Completed workout selection */}
           <div>
             <ThemedText as="label" styleType="secondary" className="block mb-1">
-              Did you complete the workout?
+              Enter Total Reps:
             </ThemedText>
-            <div className="flex space-x-4">
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  value="yes"
-                  checked={completed === true}
-                  onChange={() => setCompleted(true)}
-                  className="mr-2"
-                />
-                Yes
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  value="no"
-                  checked={completed === false}
-                  onChange={() => setCompleted(false)}
-                  className="mr-2"
-                />
-                No
-              </label>
-            </div>
+            <input
+              type="number"
+              placeholder="e.g. 150"
+              value={reps}
+              onChange={e => setReps(e.target.value)}
+              className="p-2 border border-gray-300 rounded w-full"
+            />
           </div>
-
-          {/* Conditional rendering based on completion */}
-          {completed ? (
-            <>
-              <div>
-                <ThemedText
-                  as="label"
-                  styleType="secondary"
-                  className="block mb-1"
-                >
-                  Finish Time:
-                </ThemedText>
-                <input
-                  type="text"
-                  placeholder="e.g. 12:34"
-                  value={finishTime}
-                  onChange={e => setFinishTime(formatTime(e.target.value))}
-                  className="p-2 border border-gray-300 rounded w-full"
-                />
-              </div>
-              <div>
-                <ThemedText
-                  as="label"
-                  styleType="secondary"
-                  className="block mb-1"
-                >
-                  Tiebreak Time (if applicable):
-                </ThemedText>
-                <input
-                  type="text"
-                  placeholder="e.g. 1:23"
-                  value={tiebreakTime}
-                  onChange={e => setTiebreakTime(formatTime(e.target.value))}
-                  className="p-2 border border-gray-300 rounded w-full"
-                />
-              </div>
-            </>
-          ) : (
-            <>
-              <div>
-                <ThemedText
-                  as="label"
-                  styleType="secondary"
-                  className="block mb-1"
-                >
-                  Reps Completed:
-                </ThemedText>
-                <input
-                  type="number"
-                  placeholder="Number of reps"
-                  value={reps}
-                  onChange={e => setReps(e.target.value)}
-                  className="p-2 border border-gray-300 rounded w-full"
-                />
-              </div>
-              <div>
-                <ThemedText
-                  as="label"
-                  styleType="secondary"
-                  className="block mb-1"
-                >
-                  Tiebreak Time (if applicable):
-                </ThemedText>
-                <input
-                  type="text"
-                  placeholder="e.g. 1:23"
-                  value={tiebreakTime}
-                  onChange={e => setTiebreakTime(formatTime(e.target.value))}
-                  className="p-2 border border-gray-300 rounded w-full"
-                />
-              </div>
-            </>
-          )}
-
           {error && (
             <ThemedText as="p" styleType="danger" className="text-sm">
               {error}
             </ThemedText>
           )}
-
           <ThemedButton styleType="primary" type="submit" className="w-full">
             Save Score
           </ThemedButton>

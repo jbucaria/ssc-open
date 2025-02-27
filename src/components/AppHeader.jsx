@@ -20,7 +20,11 @@ const AppHeader = ({ navigateTo }) => {
         className="w-full flex items-center justify-between pb-5 mb-5"
       >
         {/* Hamburger Menu Button */}
-        <ThemedButton styleType="primary" onClick={toggleDrawer} className="">
+        <ThemedButton
+          styleType="primary"
+          onClick={toggleDrawer}
+          className="mx-4"
+        >
           <svg
             className="h-4 w-4"
             fill="none"

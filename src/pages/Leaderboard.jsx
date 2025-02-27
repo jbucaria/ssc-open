@@ -196,6 +196,7 @@ const Leaderboard = () => {
           }))
 
           if (workoutFilter === '25.2') {
+            // For 25.2 (reps-based): sort completed scores by finishTime and non-completed by reps.
             const completedScores = fetchedScores.filter(s => s.completed)
             const nonCompletedScores = fetchedScores.filter(s => !s.completed)
             completedScores.sort(
@@ -204,7 +205,11 @@ const Leaderboard = () => {
             )
             nonCompletedScores.sort((a, b) => b.reps - a.reps)
             fetchedScores = [...completedScores, ...nonCompletedScores]
+          } else if (workoutFilter === '25.1') {
+            // For 25.1 (total reps workout), sort by reps in descending order (more reps is better) with no tiebreak.
+            fetchedScores.sort((a, b) => b.reps - a.reps)
           } else {
+            // For 25.3 (time-based workout), sort by scaling, finishTime, then tiebreak.
             const scalingOrder = { RX: 1, Scaled: 2, Foundations: 3 }
             fetchedScores.sort((a, b) => {
               const orderA = scalingOrder[a.scaling] || 99
@@ -218,6 +223,7 @@ const Leaderboard = () => {
               return tbA - tbB
             })
           }
+
           fetchedScores = fetchedScores.map((score, index) => ({
             ...score,
             rankingPoints: index + 1,
@@ -447,13 +453,14 @@ const Leaderboard = () => {
             <thead className="bg-gray-200">
               <tr>
                 <th className="border p-2">Rank</th>
-                <th className="border p-2">Photo</th>
                 <th className="border p-2">Athlete</th>
                 {workoutFilter === '25.2' ? (
                   <>
                     <th className="border p-2">Status</th>
                     <th className="border p-2">Time/Reps</th>
                   </>
+                ) : workoutFilter === '25.1' ? (
+                  <th className="border p-2">Total Reps</th>
                 ) : (
                   <>
                     <th className="border p-2">Scaling</th>
@@ -462,6 +469,7 @@ const Leaderboard = () => {
                 )}
               </tr>
             </thead>
+
             <tbody>
               {scores.map((score, index) => (
                 <tr
@@ -469,51 +477,34 @@ const Leaderboard = () => {
                   className="bg-white hover:bg-gray-50"
                 >
                   <td className="border p-2 text-center">{index + 1}</td>
-                  <td className="border p-2 text-center">
-                    {score.photoURL ? (
-                      <img
-                        src={score.photoURL}
-                        alt={score.displayName}
-                        className="w-10 h-10 rounded-full object-contain mx-auto"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center mx-auto">
-                        <ThemedText
-                          as="p"
-                          styleType="primary"
-                          className="text-sm font-bold"
-                        >
-                          {score.displayName
-                            ? score.displayName.substring(0, 2).toUpperCase()
-                            : 'NA'}
-                        </ThemedText>
-                      </div>
-                    )}
-                  </td>
                   <td className="border p-2">
-                    {score.displayName || 'Anonymous'}
+                    <div className="flex items-center space-x-2 min-w-[200px]">
+                      {score.photoURL ? (
+                        <img
+                          src={score.photoURL}
+                          alt={score.displayName}
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
+                          <ThemedText
+                            as="p"
+                            styleType="primary"
+                            className="text-sm font-bold"
+                          >
+                            {score.displayName
+                              ? score.displayName.substring(0, 2).toUpperCase()
+                              : 'NA'}
+                          </ThemedText>
+                        </div>
+                      )}
+                      <span>{score.displayName || 'Anonymous'}</span>
+                    </div>
                   </td>
-                  {workoutFilter === '25.2' ? (
-                    <>
-                      <td className="border p-2 text-center">
-                        {score.completed ? 'Completed' : 'Incomplete'}
-                      </td>
-                      <td className="border p-2 text-center">
-                        {score.completed
-                          ? score.finishTime
-                          : `${score.reps} reps`}
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="border p-2 text-center">
-                        {score.scaling}
-                      </td>
-                      <td className="border p-2 text-center">
-                        {score.finishTime || score.reps || '-'}
-                      </td>
-                    </>
-                  )}
+
+                  <td className="border p-2 text-center">
+                    {score.reps || '-'}
+                  </td>
                 </tr>
               ))}
             </tbody>
