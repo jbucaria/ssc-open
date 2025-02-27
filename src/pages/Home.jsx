@@ -2,11 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import { firestore, auth } from '@/firebaseConfig'
-import {
-  ThemedView,
-  ThemedText,
-  ThemedButton,
-} from '@/components/ThemedComponents'
+import { ThemedView, ThemedButton } from '@/components/ThemedComponents'
 import AppHeader from '@/components/AppHeader'
 import WorkoutCard from '@/components/WorkoutCard'
 import MyStandings from '@/components/MyStandings'

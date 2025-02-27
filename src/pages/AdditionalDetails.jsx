@@ -1,7 +1,7 @@
 // src/pages/AdditionalDetails.jsx
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { doc, setDoc } from 'firebase/firestore'
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
 import { auth, firestore, storage } from '@/firebaseConfig'
 import {

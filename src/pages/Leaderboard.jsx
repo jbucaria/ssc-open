@@ -1,5 +1,5 @@
 // src/pages/Leaderboard.jsx
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   ThemedView,
   ThemedText,
@@ -14,7 +14,6 @@ import {
   updateDoc,
   doc,
   getDoc,
-  onSnapshot,
 } from 'firebase/firestore'
 
 // Helper: convert a time string (hh:mm) to total minutes.
@@ -25,11 +24,11 @@ const timeToMinutes = time => {
 }
 
 // Helper: convert a time string (mm:ss) to seconds.
-const timeToSeconds = time => {
-  if (!time) return Infinity
-  const parts = time.split(':').map(Number)
-  return parts[0] * 60 + parts[1]
-}
+// const timeToSeconds = time => {
+//   if (!time) return Infinity
+//   const parts = time.split(':').map(Number)
+//   return parts[0] * 60 + parts[1]
+// }
 
 const Leaderboard = () => {
   // Filters
@@ -40,7 +39,7 @@ const Leaderboard = () => {
   const currentUser = auth.currentUser
 
   // Define available workouts (for overall aggregation)
-  const availableWorkouts = ['25.1', '25.2', '25.3']
+  const availableWorkouts = useMemo(() => ['25.1', '25.2', '25.3'], [])
 
   const [scores, setScores] = useState([])
   const [loading, setLoading] = useState(true)
@@ -245,15 +244,22 @@ const Leaderboard = () => {
     }
 
     fetchScores()
-  }, [sexFilter, ageGroupFilter, scalingFilter, workoutFilter, currentUser])
+  }, [
+    sexFilter,
+    ageGroupFilter,
+    scalingFilter,
+    workoutFilter,
+    currentUser,
+    availableWorkouts,
+  ])
 
   // Helper: compute initials from a name.
-  const getInitials = name => {
-    if (!name) return 'NA'
-    const parts = name.trim().split(' ')
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-  }
+  // const getInitials = name => {
+  //   if (!name) return 'NA'
+  //   const parts = name.trim().split(' ')
+  //   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  //   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  // }
 
   if (!currentUser) {
     return (
