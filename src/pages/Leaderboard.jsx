@@ -406,7 +406,7 @@ const Leaderboard = () => {
                         <img
                           src={score.photoURL}
                           alt={score.displayName}
-                          className="w-10 h-10 rounded-full object-contain"
+                          className="w-10 h-10 rounded-full object-cover"
                         />
                       ) : (
                         <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">

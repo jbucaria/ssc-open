@@ -43,6 +43,7 @@ const MyStandings = () => {
       where('workoutName', 'in', availableWorkouts),
       where('completed', '==', true)
     )
+    // Inside your useEffect in MyStandings.jsx (overall branch)
     const unsubscribe = onSnapshot(
       q,
       async querySnapshot => {
@@ -118,29 +119,34 @@ const MyStandings = () => {
           // Sort users by totalPoints (lower is better).
           aggregatedArray.sort((a, b) => a.totalPoints - b.totalPoints)
 
-          // For each aggregated user, fetch their profile from the "users" collection.
-          const userPromises = aggregatedArray.map(async user => {
-            const userDocRef = doc(firestore, 'users', user.userId)
+          // Fallback: if the current user isn't in the aggregated data, fetch their profile.
+          let currentUserData = aggregatedArray.find(
+            user => user.userId === currentUser.uid
+          )
+          if (!currentUserData) {
+            const userDocRef = doc(firestore, 'users', currentUser.uid)
             const userSnap = await getDoc(userDocRef)
             if (userSnap.exists()) {
               const data = userSnap.data()
-              user.displayName = data.displayName
-              user.athleteCategory = data.athleteCategory
-              user.photoURL = data.photoURL
+              currentUserData = {
+                userId: currentUser.uid,
+                displayName: data.displayName,
+                athleteCategory: data.athleteCategory,
+                photoURL: data.photoURL,
+                totalPoints: 0,
+                perWorkout: {},
+              }
+              aggregatedArray.push(currentUserData)
             }
-          })
-          await Promise.all(userPromises)
+          }
 
           // Determine the overall placement of the current user.
           const placement =
             aggregatedArray.findIndex(user => user.userId === currentUser.uid) +
             1
-          const myResult = aggregatedArray.find(
-            user => user.userId === currentUser.uid
-          )
           setMyStandings({
             overallPlacement: placement,
-            ...myResult,
+            ...currentUserData,
           })
           setLoading(false)
         } catch (err) {
@@ -155,6 +161,7 @@ const MyStandings = () => {
         setLoading(false)
       }
     )
+
     return unsubscribe
   }, [currentUser])
 
@@ -230,18 +237,15 @@ const MyStandings = () => {
       className="rounded shadow-lg bg-gray-100 cursor-pointer hover:shadow-xl transition-shadow"
       onClick={handlePress}
     >
-      <div styleType="default" className="mb-4 p-4 ">
-        <ThemedText as="h2" styleType="primary" className="text-2xl font-bold">
-          Overall Placement: {myStandings.overallPlacement}
-        </ThemedText>
-      </div>
-      <div className="flex items-center space-x-4 mb-4 p-2">
+      <div className="flex items-center space-x-4 mb-4 p-2 ">
         {myStandings.photoURL ? (
-          <img
-            src={myStandings.photoURL}
-            alt={myStandings.displayName}
-            className="w-16 h-16 rounded-full object-contain"
-          />
+          <div className="w-16 h-16 rounded-full bg-gray-300 flex items-center justify-center">
+            <img
+              src={myStandings.photoURL}
+              alt={myStandings.displayName}
+              className="w-16 h-16 rounded-full object-cover"
+            />
+          </div>
         ) : (
           <div className="w-16 h-16 rounded-full bg-gray-300 flex items-center justify-center">
             <ThemedText
@@ -259,6 +263,15 @@ const MyStandings = () => {
           </ThemedText>
           <ThemedText as="p" styleType="secondary" className="text-lg">
             {myStandings.athleteCategory}
+          </ThemedText>
+        </div>
+        <div className="mb-4 p-4 ">
+          <ThemedText
+            as="h2"
+            styleType="primary"
+            className="text-2xl font-bold"
+          >
+            Overall: {myStandings.overallPlacement}
           </ThemedText>
         </div>
       </div>

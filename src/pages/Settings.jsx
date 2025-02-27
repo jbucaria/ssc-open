@@ -126,14 +126,7 @@ const Settings = () => {
       className="min-h-screen bg-gray-50 p-4 w-full"
     >
       {/* Header with Back Button */}
-      <header className="flex items-center justify-between mb-6">
-        <ThemedButton
-          styleType="secondary"
-          onClick={() => navigate(-1)}
-          className="px-4 py-2"
-        >
-          Back
-        </ThemedButton>
+      <header className="flex items-center justify-center mb-6">
         <ThemedText as="h1" styleType="primary" className="text-2xl font-bold">
           Settings
         </ThemedText>

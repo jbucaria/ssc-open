@@ -2,6 +2,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from '@/context/AuthProvider'
 import { UserProvider } from '@/context/UserContext'
+import UserDocListener from '@/components/UserDocListener'
 import Login from '@/pages/Login'
 import Home from '@/pages/Home'
 import Leaderboard from '@/pages/Leaderboard'
@@ -13,6 +14,7 @@ const App = () => (
   <AuthProvider>
     <UserProvider>
       <Router>
+        <UserDocListener />
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/home" element={<Home />} />

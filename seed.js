@@ -5,6 +5,8 @@ import {
   collection,
   addDoc,
   serverTimestamp,
+  setDoc,
+  doc,
 } from 'firebase/firestore'
 
 // Replace with your test project or emulator configuration
@@ -40,28 +42,35 @@ function randomTime(minMinutes, maxMinutes) {
 // Test Data Arrays
 //
 
-// Additional test users.
-const otherNames = [
-  'Alice',
-  'Bob',
-  'Charlie',
+// Define separate arrays for male and female first names.
+const maleNames = [
+  'John',
+  'Michael',
   'David',
-  'Eva',
-  'Fiona',
-  'George',
-  'Hannah',
-  'Ian',
-  'Julia',
+  'Robert',
+  'James',
   'Kevin',
+  'Mark',
+]
+const femaleNames = [
+  'Jessica',
+  'Emily',
+  'Sarah',
+  'Ashley',
+  'Amanda',
   'Laura',
-  'Mike',
-  'Nina',
-  'Oscar',
-  'Pam',
-  'Quinn',
-  'Rachel',
-  'Steve',
-  'Tina',
+  'Nicole',
+]
+
+// Define an array for last names.
+const lastNames = [
+  'Bucaria',
+  'Smith',
+  'Johnson',
+  'Williams',
+  'Brown',
+  'Jones',
+  'Davis',
 ]
 
 // Athlete categories in Title Case.
@@ -92,19 +101,23 @@ const scalings = ['RX', 'Scaled', 'Foundations']
 //
 const testUsers = []
 
-otherNames.forEach((name, index) => {
-  // Generate a uid that doesn't conflict with John's.
-  const uid = `user${index + 1}`
+for (let i = 0; i < 20; i++) {
+  const sex = randomChoice(sexes)
+  const firstName =
+    sex === 'male' ? randomChoice(maleNames) : randomChoice(femaleNames)
+  const lastName = randomChoice(lastNames)
+  const displayName = `${firstName} ${lastName}`
+  // Generate a uid that is unique. (You might want to include a fixed uid for a known test user.)
+  const uid = `user${i + 1}`
   testUsers.push({
     uid,
-    displayName: name,
-    email: `${name.toLowerCase()}@example.com`,
-    sex: randomChoice(sexes),
+    displayName,
+    email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
+    sex,
     athleteCategory: randomChoice(athleteCategories),
-    // For these users, additional details (like dob and profession) may be absent.
     createdAt: serverTimestamp(),
   })
-})
+}
 
 //
 // Create Test Scores Array
@@ -132,13 +145,11 @@ testUsers.forEach(user => {
     let scaling = randomChoice(scalings)
 
     if (completed) {
-      // For completed workouts, generate a finish time.
       finishTime = randomTime(10, 20)
       if (Math.random() < 0.5) {
         tiebreakTime = randomTime(0, 2)
       }
     } else {
-      // For non-completed workouts, set finishTime to null and assign reps.
       reps = Math.floor(Math.random() * 101) + 50 // between 50 and 150 reps.
       if (Math.random() < 0.5) {
         tiebreakTime = randomTime(0, 2)
@@ -146,30 +157,28 @@ testUsers.forEach(user => {
     }
 
     // Force a tie scenario for workout "25.1":
-    // For John Bucaria and one other user (say, user1) if they completed.
     if (workout === '25.1' && completed) {
       if (user.uid === 'MUwCQD7gGaZ4oESe9FLEuOPGn5z1') {
         finishTime = '12:34'
         scaling = 'RX'
-        tiebreakTime = '1:23'
+        tiebreakTime = '01:23'
       } else if (user.uid === 'user1') {
         finishTime = '12:34'
         scaling = 'RX'
-        tiebreakTime = '1:22'
+        tiebreakTime = '01:22'
       }
     }
 
     // Force a tie scenario for workout "25.3":
-    // For example, force a tie for two users (say, user2 and user3) if they completed.
     if (workout === '25.3' && completed) {
       if (user.uid === 'user2') {
         finishTime = '13:00'
         scaling = 'Scaled'
-        tiebreakTime = '1:00'
+        tiebreakTime = '01:00'
       } else if (user.uid === 'user3') {
         finishTime = '13:00'
         scaling = 'Scaled'
-        tiebreakTime = '1:05'
+        tiebreakTime = '01:05'
       }
     }
 
@@ -194,9 +203,6 @@ testUsers.forEach(user => {
 
 //
 // Compute Ranking Points for Each Workout
-//
-// For time-based workouts ("25.1" and "25.3"), sort by scaling hierarchy, then finish time, then tiebreak.
-// For reps-based ("25.2"), assume completed entries come first (sorted by finishTime) then not completed sorted by reps (descending).
 function computeRankingPoints(workout, scoresArr) {
   // Filter scores for this workout and that are completed.
   let completedScores = scoresArr.filter(
@@ -221,9 +227,7 @@ function computeRankingPoints(workout, scoresArr) {
       const tbB = timeToSeconds(b.tiebreakTime)
       return tbA - tbB
     })
-    // Non-completed scores (for time-based workouts) can be appended after completed ones.
     nonCompletedScores.sort((a, b) => {
-      // Sort by reps descending (higher reps better) then by tiebreak.
       if (b.reps !== a.reps) return b.reps - a.reps
       const tbA = timeToSeconds(a.tiebreakTime)
       const tbB = timeToSeconds(b.tiebreakTime)
@@ -235,13 +239,10 @@ function computeRankingPoints(workout, scoresArr) {
     })
     return sortedScores
   } else if (workout === '25.2') {
-    // For reps-based workout, assume finishTime exists only for completed ones.
     completedScores.sort((a, b) => {
-      // For completed, sort by finishTime ascending.
       return timeToSeconds(a.finishTime) - timeToSeconds(b.finishTime)
     })
     nonCompletedScores.sort((a, b) => {
-      // For non-completed, sort by reps descending, then tiebreak ascending.
       if (b.reps !== a.reps) return b.reps - a.reps
       return timeToSeconds(a.tiebreakTime) - timeToSeconds(b.tiebreakTime)
     })
@@ -264,7 +265,6 @@ function timeToSeconds(time) {
 // Compute ranking points for each workout and update the testScores array.
 workouts.forEach(workout => {
   const computed = computeRankingPoints(workout, testScores)
-  // Update the corresponding entries in testScores.
   computed.forEach(score => {
     const idx = testScores.findIndex(
       s => s.userId === score.userId && s.workoutName === score.workoutName
@@ -281,10 +281,9 @@ workouts.forEach(workout => {
 async function seedData() {
   try {
     console.log('Seeding test users...')
-    const usersRef = collection(db, 'users')
+    // For each test user, use their uid as the document ID.
     for (const user of testUsers) {
-      // Use the uid as the document ID for consistency.
-      await addDoc(usersRef, user)
+      await setDoc(doc(db, 'users', user.uid), user)
     }
     console.log('Test users seeded.')
 

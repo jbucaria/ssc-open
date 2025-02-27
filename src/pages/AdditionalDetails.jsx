@@ -197,7 +197,7 @@ const AdditionalDetails = () => {
             <img
               src={profilePic}
               alt="Profile Preview"
-              className="w-24 h-24 rounded-full mb-2 object-contain"
+              className="w-24 h-24 rounded-full mb-2 object-cover"
             />
           )}
           <input
