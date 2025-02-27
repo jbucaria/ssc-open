@@ -52,7 +52,7 @@ const Login = () => {
       const userRef = doc(firestore, 'users', pendingUser.uid)
       await setDoc(userRef, { isMember: true }, { merge: true })
       setShowMembershipModal(false)
-      // Consider navigating to '/additionaldetails' if further details are required.
+      // Navigate to additional details if required.
       navigate('/additionaldetails')
     } else {
       window.alert(
@@ -63,14 +63,16 @@ const Login = () => {
     }
   }
 
+  // This helper checks if additional details exist (here we use both 'sex' and 'dob' as indicators)
+  const hasAdditionalDetails = userData => userData.sex && userData.dob
+
   const handleEmailSignIn = async e => {
     e.preventDefault()
     try {
       const result = await signInWithEmailAndPassword(auth, email, password)
       const user = result.user
       const userData = await handleUserFirestore(user)
-      if (userData.isMember) {
-        // Navigate to additional details if needed or directly to home if already complete.
+      if (userData.isMember && hasAdditionalDetails(userData)) {
         navigate('/home')
       } else {
         setPendingUser(user)
@@ -88,9 +90,8 @@ const Login = () => {
       const result = await signInWithPopup(auth, provider)
       const user = result.user
       const userData = await handleUserFirestore(user)
-      if (userData.isMember) {
-        // Make sure this matches your intended flow:
-        navigate('/additionaldetails')
+      if (userData.isMember && hasAdditionalDetails(userData)) {
+        navigate('/home')
       } else {
         setPendingUser(user)
         setShowMembershipModal(true)
@@ -107,7 +108,7 @@ const Login = () => {
       const result = await signInWithPopup(auth, provider)
       const user = result.user
       const userData = await handleUserFirestore(user)
-      if (userData.isMember) {
+      if (userData.isMember && hasAdditionalDetails(userData)) {
         navigate('/home')
       } else {
         setPendingUser(user)
