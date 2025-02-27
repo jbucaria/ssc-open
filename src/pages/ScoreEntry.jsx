@@ -82,6 +82,8 @@ const ScoreEntry = () => {
       tiebreakTime: tiebreakTime || null,
       userId: auth.currentUser?.uid,
       displayName: auth.currentUser?.displayName, // add this line
+      sex: auth.currentUser?.sex,
+      athleteCategory: auth.currentUser?.athleteCategory,
       createdAt: serverTimestamp(),
     }
 

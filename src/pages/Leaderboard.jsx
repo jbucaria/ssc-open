@@ -60,7 +60,8 @@ const Leaderboard = () => {
           // Optionally, apply additional filters (sex, age group, scaling) if not "All"
           if (sexFilter !== 'All') {
             fetchedScores = fetchedScores.filter(
-              score => score.sex === sexFilter
+              score =>
+                score.sex && score.sex.toLowerCase() === sexFilter.toLowerCase()
             )
           }
           if (ageGroupFilter !== 'Overall') {
@@ -140,7 +141,6 @@ const Leaderboard = () => {
           })
         }
 
-        // Debug: Log fetched scores to verify they are returned.
         console.log('Fetched Scores:', fetchedScores)
         setScores(fetchedScores)
       } catch (err) {
