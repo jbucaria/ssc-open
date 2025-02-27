@@ -52,11 +52,11 @@ const Login = () => {
       const userRef = doc(firestore, 'users', pendingUser.uid)
       await setDoc(userRef, { isMember: true }, { merge: true })
       setShowMembershipModal(false)
-      navigate('/home')
+      // Consider navigating to '/additionaldetails' if further details are required.
+      navigate('/additionaldetails')
     } else {
       window.alert(
-        'Invalid Code',
-        'The membership code you entered is incorrect.'
+        'Invalid Code: The membership code you entered is incorrect.'
       )
       await signOut(auth)
       setShowMembershipModal(false)
@@ -70,6 +70,7 @@ const Login = () => {
       const user = result.user
       const userData = await handleUserFirestore(user)
       if (userData.isMember) {
+        // Navigate to additional details if needed or directly to home if already complete.
         navigate('/home')
       } else {
         setPendingUser(user)
@@ -88,7 +89,8 @@ const Login = () => {
       const user = result.user
       const userData = await handleUserFirestore(user)
       if (userData.isMember) {
-        navigate('/home')
+        // Make sure this matches your intended flow:
+        navigate('/additionaldetails')
       } else {
         setPendingUser(user)
         setShowMembershipModal(true)
@@ -186,7 +188,7 @@ const Login = () => {
             <ThemedText
               as="h2"
               styleType="primary"
-              className="text-xl font-bold mb-4"
+              className="text-xl font-bold mb-4 w-2/3"
             >
               Enter Membership Code
             </ThemedText>

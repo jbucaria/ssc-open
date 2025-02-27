@@ -1,0 +1,170 @@
+/* themed-components.css */
+
+/* ThemedView styles */
+.themed-view {
+  padding: 16px; /* Example common padding */
+}
+
+.themed-view-default {
+  background-color: white;
+  color: black;
+}
+
+.themed-view-dark {
+  background-color: black;
+  color: white;
+}
+
+.themed-view-gold {
+  background-color: #ffc107; /* yellow-400 equivalent */
+  color: black;
+}
+
+.themed-view-primary {
+  background-color: #2d3748; /* gray-800 equivalent */
+  color: white;
+}
+
+.themed-view-secondary {
+  background-color: #f7fafc; /* gray-100 equivalent */
+  color: black;
+}
+
+.themed-view-success {
+  background-color: #c6f6d5; /* green-100 equivalent */
+  color: #2f855a; /* green-800 equivalent */
+}
+
+.themed-view-danger {
+  background-color: #fed7d7; /* red-100 equivalent */
+  color: #c53030; /* red-800 equivalent */
+}
+
+/* ThemedText styles */
+.themed-text-default {
+  color: black;
+}
+
+.themed-text-dark {
+  color: white;
+}
+
+.themed-text-gold {
+  color: #ffc107;
+}
+
+.themed-text-primary {
+  color: #2d3748;
+}
+
+.themed-text-secondary {
+  color: #718096; /* gray-600 equivalent */
+}
+
+.themed-text-success {
+  color: #2f855a;
+}
+
+.themed-text-danger {
+  color: #c53030;
+}
+
+/* ThemedButton styles */
+.themed-button {
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+  border: none;
+}
+
+.themed-button:hover {
+  opacity: 0.9;
+}
+
+.themed-button:active {
+  transform: scale(0.97);
+}
+
+.themed-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.themed-button-default {
+  background-color: #2d3748; /* gray-800 */
+  color: white;
+}
+
+.themed-button-dark {
+  background-color: black;
+  color: white;
+}
+
+.themed-button-gold {
+  background-color: #ffc107;
+  color: black;
+}
+
+.themed-button-primary {
+  background-color: black;
+  color: white;
+}
+
+.themed-button-secondary {
+  background-color: #f7fafc; /* gray-100 */
+  color: #2d3748; /* gray-800 */
+  border: 1px solid #e2e8f0; /* gray-300 equivalent */
+}
+
+.themed-button-success {
+  background-color: #38a169; /* green-600 */
+  color: white;
+}
+
+.themed-button-danger {
+  background-color: #e53e3e; /* red-600 */
+  color: white;
+}
+
+/* ThemedHeader styles */
+.themed-header {
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.themed-header-default {
+  background-color: white;
+  color: black;
+}
+
+.themed-header-dark {
+  background-color: black;
+  color: white;
+}
+
+.themed-header-gold {
+  background-color: #ffc107;
+  color: black;
+}
+
+.themed-header-primary {
+  background-color: #2d3748;
+  color: white;
+}
+
+.themed-header-secondary {
+  background-color: #f7fafc;
+  color: black;
+}
+
+.themed-header-success {
+  background-color: #38a169;
+  color: white;
+}
+
+.themed-header-danger {
+  background-color: #e53e3e;
+  color: white;
+}

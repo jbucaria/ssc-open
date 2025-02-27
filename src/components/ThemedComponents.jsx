@@ -2,6 +2,7 @@
 // src/components/ThemedComponents.js
 
 import classNames from 'classnames'
+import './ThemedComponents.css'
 
 export function ThemedView({
   styleType = 'default',
@@ -10,17 +11,20 @@ export function ThemedView({
   ...props
 }) {
   const styleMap = {
-    default: 'bg-white text-black',
-    dark: 'bg-black text-white',
-    gold: 'bg-yellow-400 text-black',
-    primary: 'bg-gray-800 text-white',
-    secondary: 'bg-gray-100 text-black',
-    success: 'bg-green-100 text-green-800',
-    danger: 'bg-red-100 text-red-800',
+    default: 'themed-view-default',
+    dark: 'themed-view-dark',
+    gold: 'themed-view-gold',
+    primary: 'themed-view-primary',
+    secondary: 'themed-view-secondary',
+    success: 'themed-view-success',
+    danger: 'themed-view-danger',
   }
 
   return (
-    <div className={classNames(styleMap[styleType], className)} {...props}>
+    <div
+      className={classNames('themed-view', styleMap[styleType], className)}
+      {...props}
+    >
       {children}
     </div>
   )
@@ -35,13 +39,13 @@ export function ThemedText({
 }) {
   const Component = as
   const styleMap = {
-    default: 'text-black',
-    dark: 'text-white',
-    gold: 'text-yellow-400',
-    primary: 'text-gray-800',
-    secondary: 'text-gray-600',
-    success: 'text-green-800',
-    danger: 'text-red-800',
+    default: 'themed-text-default',
+    dark: 'themed-text-dark',
+    gold: 'themed-text-gold',
+    primary: 'themed-text-primary',
+    secondary: 'themed-text-secondary',
+    success: 'themed-text-success',
+    danger: 'themed-text-danger',
   }
 
   return (
@@ -63,13 +67,13 @@ export function ThemedButton({
   ...props
 }) {
   const styleMap = {
-    default: 'bg-gray-800 text-white',
-    dark: 'bg-black text-white',
-    gold: 'bg-yellow-400 text-black',
-    primary: 'bg-black text-white',
-    secondary: 'bg-gray-100 text-gray-800 border border-gray-300',
-    success: 'bg-green-600 text-white',
-    danger: 'bg-red-600 text-white',
+    default: 'themed-button-default',
+    dark: 'themed-button-dark',
+    gold: 'themed-button-gold',
+    primary: 'themed-button-primary',
+    secondary: 'themed-button-secondary',
+    success: 'themed-button-success',
+    danger: 'themed-button-danger',
   }
 
   return (
@@ -77,11 +81,7 @@ export function ThemedButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={classNames(
-        'rounded px-4 py-2 font-semibold hover:opacity-90 active:scale-95 disabled:opacity-50',
-        styleMap[styleType],
-        className
-      )}
+      className={classNames('themed-button', styleMap[styleType], className)}
       {...props}
     >
       {children}
@@ -96,18 +96,18 @@ export function ThemedHeader({
   ...props
 }) {
   const styleMap = {
-    default: 'bg-white text-black shadow',
-    dark: 'bg-black text-white shadow',
-    gold: 'bg-yellow-400 text-black shadow',
-    primary: 'bg-gray-800 text-white shadow',
-    secondary: 'bg-gray-100 text-black',
-    success: 'bg-green-600 text-white shadow',
-    danger: 'bg-red-600 text-white shadow',
+    default: 'themed-header-default',
+    dark: 'themed-header-dark',
+    gold: 'themed-header-gold',
+    primary: 'themed-header-primary',
+    secondary: 'themed-header-secondary',
+    success: 'themed-header-success',
+    danger: 'themed-header-danger',
   }
 
   return (
     <header
-      className={classNames(styleMap[styleType], className, 'p-4')}
+      className={classNames('themed-header', styleMap[styleType], className)}
       {...props}
     >
       {children}
