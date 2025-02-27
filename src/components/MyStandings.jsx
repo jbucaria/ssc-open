@@ -230,11 +230,11 @@ const MyStandings = () => {
       className="rounded shadow-lg bg-gray-100 cursor-pointer hover:shadow-xl transition-shadow"
       onClick={handlePress}
     >
-      <ThemedHeader styleType="default" className="mb-4 p-4">
+      <div styleType="default" className="mb-4 p-4 ">
         <ThemedText as="h2" styleType="primary" className="text-2xl font-bold">
           Overall Placement: {myStandings.overallPlacement}
         </ThemedText>
-      </ThemedHeader>
+      </div>
       <div className="flex items-center space-x-4 mb-4 p-2">
         {myStandings.photoURL ? (
           <img

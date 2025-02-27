@@ -31,7 +31,7 @@ const Home = () => {
   }, [workoutName])
 
   return (
-    <ThemedView styleType="default" className="min-h-screen w-full">
+    <ThemedView styleType="default" className="min-h-screen w-screen">
       <AppHeader navigateTo={navigate} />
       <div className="">
         <section className="mb-6">

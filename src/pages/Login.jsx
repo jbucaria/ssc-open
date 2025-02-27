@@ -16,6 +16,7 @@ import {
 import { auth, firestore } from '@/firebaseConfig'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import logo from '@/assets/logo1.png'
+import cfLogo from '@/assets/cg25.png'
 
 const MEMBERSHIP_CODE = '2023' // Replace with your desired membership code
 
@@ -123,8 +124,15 @@ const Login = () => {
   return (
     <ThemedView
       styleType="default"
-      className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4"
+      className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-0"
     >
+      <div className="mb-8">
+        <img
+          src={cfLogo}
+          alt="Seven Springs CrossFit Logo"
+          className="w-40 h-40 mx-auto"
+        />
+      </div>
       <div className="mb-8">
         <img
           src={logo}
@@ -132,13 +140,7 @@ const Login = () => {
           className="w-40 h-40 mx-auto"
         />
       </div>
-      <ThemedText
-        as="h1"
-        styleType="primary"
-        className="text-3xl font-bold mb-6"
-      >
-        Welcome to Seven Springs CrossFit
-      </ThemedText>
+
       <form onSubmit={handleEmailSignIn} className="w-full max-w-sm mb-4">
         <div className="mb-4">
           <input

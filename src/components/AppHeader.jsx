@@ -17,7 +17,7 @@ const AppHeader = ({ navigateTo }) => {
     <>
       <ThemedHeader
         styleType="default"
-        className="w-full flex items-center justify-between mb-5"
+        className="w-full flex items-center justify-between pb-5 mb-5"
       >
         {/* Hamburger Menu Button */}
         <ThemedButton styleType="primary" onClick={toggleDrawer} className="">

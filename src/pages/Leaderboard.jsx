@@ -324,7 +324,7 @@ const Leaderboard = () => {
           <select
             value={sexFilter}
             onChange={e => setSexFilter(e.target.value)}
-            className="p-2 border rounded w-full"
+            className="p-2 border rounded w-full "
           >
             <option value="All">All</option>
             <option value="male">Male</option>
