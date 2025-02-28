@@ -1,11 +1,13 @@
 /* eslint-disable react/prop-types */
 import { useState } from 'react'
+import { signOut } from 'firebase/auth'
+import { auth } from '@/firebaseConfig'
 import {
   ThemedHeader,
   ThemedButton,
   ThemedText,
 } from '@/components/ThemedComponents'
-import logo from '@/assets/logo.png'
+import logo from '@/assets/logo1.png' // Verify this path
 
 const AppHeader = ({ navigateTo }) => {
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -13,11 +15,30 @@ const AppHeader = ({ navigateTo }) => {
   const toggleDrawer = () => setDrawerOpen(prev => !prev)
   const closeDrawer = () => setDrawerOpen(false)
 
+  // Function to handle user logout
+  const handleLogout = async () => {
+    try {
+      await signOut(auth)
+      // Navigate to the login screen after signing out
+      if (typeof navigateTo === 'function') {
+        navigateTo('/login')
+      } else {
+        console.error('navigateTo is not a function')
+      }
+    } catch (error) {
+      console.error('Logout error:', error)
+    }
+    closeDrawer()
+  }
+
+  // Debug logo import
+  console.log('Logo:', logo)
+
   return (
     <>
       <ThemedHeader
         styleType="default"
-        className="w-full flex items-center justify-between pb-5 mb-5"
+        className="w-full flex items-center justify-between pb-10 mb-5"
       >
         {/* Hamburger Menu Button */}
         <ThemedButton
@@ -41,7 +62,15 @@ const AppHeader = ({ navigateTo }) => {
         </ThemedButton>
 
         {/* Logo centered */}
-        <img src={logo} alt="Logo" className="h-14" />
+        <img
+          src={logo || 'https://via.placeholder.com/56'} // Fallback if logo fails
+          alt="Logo"
+          className="h-14 my-5"
+          onError={e => {
+            console.error('Logo failed to load:', e.target.src)
+            e.target.src = 'https://via.placeholder.com/56' // Fallback image
+          }}
+        />
 
         {/* Empty div for spacing on the right */}
         <div className="w-8" />
@@ -68,8 +97,12 @@ const AppHeader = ({ navigateTo }) => {
               <ThemedButton
                 styleType="secondary"
                 onClick={() => {
-                  navigateTo('/leaderboard')
-                  closeDrawer()
+                  if (typeof navigateTo === 'function') {
+                    navigateTo('/leaderboard')
+                    closeDrawer()
+                  } else {
+                    console.error('navigateTo is not a function')
+                  }
                 }}
                 className="w-full"
               >
@@ -78,12 +111,23 @@ const AppHeader = ({ navigateTo }) => {
               <ThemedButton
                 styleType="secondary"
                 onClick={() => {
-                  navigateTo('/settings')
-                  closeDrawer()
+                  if (typeof navigateTo === 'function') {
+                    navigateTo('/settings')
+                    closeDrawer()
+                  } else {
+                    console.error('navigateTo is not a function')
+                  }
                 }}
                 className="w-full"
               >
-                Settings
+                Profile
+              </ThemedButton>
+              <ThemedButton
+                styleType="secondary"
+                onClick={handleLogout}
+                className="w-full"
+              >
+                Logout
               </ThemedButton>
             </div>
           </div>

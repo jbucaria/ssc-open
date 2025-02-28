@@ -1,13 +1,41 @@
 // src/components/WorkoutCard.jsx
-import React from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   ThemedView,
   ThemedText,
   ThemedButton,
 } from '@/components/ThemedComponents'
+import { firestore, auth } from '@/firebaseConfig'
+import { collection, query, where, getDocs } from 'firebase/firestore'
 
 const WorkoutCard = () => {
   const scorecardUrl = 'https://games.crossfit.com/workouts/open/2025'
+  const workoutName = '25.1'
+  const [scoreSubmitted, setScoreSubmitted] = useState(false)
+  const navigate = useNavigate()
+
+  // Check if a score already exists for this user and workout '25.1'
+  useEffect(() => {
+    const checkScore = async () => {
+      if (!auth.currentUser) return
+      const scoresRef = collection(firestore, 'scores')
+      const q = query(
+        scoresRef,
+        where('userId', '==', auth.currentUser.uid),
+        where('workoutName', '==', workoutName)
+      )
+      const querySnapshot = await getDocs(q)
+      setScoreSubmitted(!querySnapshot.empty)
+    }
+    if (auth.currentUser) {
+      checkScore()
+    }
+  }, [workoutName])
+
+  const handleScoreClick = () => {
+    navigate('/scoreentry', { state: { workoutName } })
+  }
 
   return (
     <ThemedView
@@ -40,9 +68,16 @@ const WorkoutCard = () => {
       <ThemedButton
         styleType="primary"
         onClick={() => window.open(scorecardUrl, '_blank')}
-        className="w-full"
+        className="w-full mb-4"
       >
         View Official Workout
+      </ThemedButton>
+      <ThemedButton
+        styleType="default"
+        onClick={handleScoreClick}
+        className="w-full"
+      >
+        {scoreSubmitted ? 'Edit Score' : 'Enter Score'}
       </ThemedButton>
     </ThemedView>
   )

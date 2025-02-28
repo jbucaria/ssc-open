@@ -1,8 +1,9 @@
-/* themed-components.css */
+/* eslint-disable react/prop-types */
+/* src/components/ThemedComponents.css */
 
 /* ThemedView styles */
 .themed-view {
-  padding: 0px; /* Example common padding */
+  padding: 1rem; /* Default 16px padding */
 }
 
 .themed-view-default {
@@ -77,6 +78,9 @@
   cursor: pointer;
   transition: opacity 0.2s, transform 0.1s;
   border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .themed-button:hover {
@@ -130,7 +134,7 @@
 
 /* ThemedHeader styles */
 .themed-header {
-  padding: opx;
+  padding: 0px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 

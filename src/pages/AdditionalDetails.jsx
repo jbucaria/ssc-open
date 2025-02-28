@@ -104,6 +104,7 @@ const AdditionalDetails = () => {
           dob,
           athleteCategory,
           photoURL: profilePic,
+          isMember: true,
         },
         { merge: true }
       )
@@ -189,21 +190,29 @@ const AdditionalDetails = () => {
         </div>
 
         {/* Profile Picture Upload */}
-        <div>
-          <ThemedText as="label" styleType="secondary" className="block mb-1">
-            Add a Profile Picture:
-          </ThemedText>
-          {profilePic && (
+        <div className="flex flex-col items-center space-y-2">
+          {profilePic ? (
             <img
               src={profilePic}
               alt="Profile Preview"
-              className="w-24 h-24 rounded-full mb-2 object-cover"
+              className="w-32 h-32 rounded-full mb-2 object-cover border border-gray-300"
             />
+          ) : (
+            <label
+              htmlFor="profilePicInput"
+              className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center border border-gray-300 cursor-pointer hover:bg-gray-300"
+            >
+              <ThemedText as="p" styleType="secondary" className="text-lg">
+                Choose Photo
+              </ThemedText>
+            </label>
           )}
           <input
+            id="profilePicInput"
             type="file"
             onChange={handleProfilePicUpload}
-            className="mb-2"
+            className="hidden"
+            accept="image/*"
           />
           {uploading && (
             <ThemedText

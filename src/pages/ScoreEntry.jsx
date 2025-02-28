@@ -19,11 +19,12 @@ import {
   getDoc,
 } from 'firebase/firestore'
 
-// Simple helper to format time as hh:mm (not used now)
-const formatTime = value => {
-  const digits = value.replace(/\D/g, '')
-  if (digits.length < 3) return digits
-  return digits.slice(0, 2) + ':' + digits.slice(2, 4)
+// Function to compute rounds and extra reps for 25.1
+const computeRoundsAndReps25_1 = totalReps => {
+  const N = Math.floor((-5 + Math.sqrt(25 + 12 * totalReps)) / 6)
+  const completedReps = N * (3 * N + 5)
+  const extraReps = totalReps - completedReps
+  return { rounds: N, extraReps }
 }
 
 const ScoreEntry = () => {
@@ -31,6 +32,7 @@ const ScoreEntry = () => {
   const { workoutName } = location.state || { workoutName: 'Default Workout' }
   const [scaling, setScaling] = useState('RX')
   const [reps, setReps] = useState('')
+  const [roundsAndReps, setRoundsAndReps] = useState(null) // State for 25.1 breakdown
   const [error, setError] = useState('')
   const [submittedScore, setSubmittedScore] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
@@ -76,10 +78,30 @@ const ScoreEntry = () => {
         setScaling(data.scaling || 'RX')
         setReps(data.reps || '')
         setIsEditing(false)
+        // Calculate rounds and reps for 25.1 if applicable
+        if (workoutName === '25.1' && data.reps) {
+          const { rounds, extraReps } = computeRoundsAndReps25_1(data.reps)
+          setRoundsAndReps({ rounds, extraReps })
+        }
       }
     }
     fetchScore()
   }, [workoutName])
+
+  // Update rounds and reps dynamically as reps change (only for 25.1)
+  useEffect(() => {
+    if (workoutName === '25.1' && reps) {
+      const repsNumber = Number(reps)
+      if (!isNaN(repsNumber) && repsNumber >= 0) {
+        const { rounds, extraReps } = computeRoundsAndReps25_1(repsNumber)
+        setRoundsAndReps({ rounds, extraReps })
+      } else {
+        setRoundsAndReps(null)
+      }
+    } else {
+      setRoundsAndReps(null)
+    }
+  }, [reps, workoutName])
 
   const handleSubmit = async e => {
     e.preventDefault()
@@ -166,6 +188,12 @@ const ScoreEntry = () => {
           <ThemedText as="p" styleType="default">
             <strong>Total Reps:</strong> {submittedScore.reps}
           </ThemedText>
+          {workoutName === '25.1' && submittedScore.reps && (
+            <ThemedText as="p" styleType="default">
+              <strong>Rounds + Reps:</strong>{' '}
+              {`${roundsAndReps.rounds} rounds + ${roundsAndReps.extraReps} reps`}
+            </ThemedText>
+          )}
           <div className="flex space-x-4">
             <ThemedButton
               styleType="primary"
@@ -210,6 +238,12 @@ const ScoreEntry = () => {
               onChange={e => setReps(e.target.value)}
               className="p-2 border border-gray-300 rounded w-full"
             />
+            {workoutName === '25.1' && reps && !isNaN(Number(reps)) && (
+              <ThemedText as="p" styleType="default" className="mt-2">
+                <strong>Rounds + Reps:</strong>{' '}
+                {`${roundsAndReps.rounds} rounds + ${roundsAndReps.extraReps} reps`}
+              </ThemedText>
+            )}
           </div>
           {error && (
             <ThemedText as="p" styleType="danger" className="text-sm">

@@ -9,6 +9,7 @@ import Leaderboard from '@/pages/Leaderboard'
 import Settings from '@/pages/Settings'
 import AdditionalDetails from '@/pages/AdditionalDetails'
 import ScoreEntry from './pages/ScoreEntry'
+import Signup from './pages/SIgnUp'
 
 const App = () => (
   <AuthProvider>
@@ -21,7 +22,9 @@ const App = () => (
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/additionaldetails" element={<AdditionalDetails />} />
+          <Route path="/signup" element={<Signup />} />
           <Route path="/scoreentry" element={<ScoreEntry />} />
+          <Route path="/login" element={<Login />} />
         </Routes>
       </Router>
     </UserProvider>
