@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { signOut, deleteUser, updateEmail, updatePassword } from 'firebase/auth'
+import { deleteUser, updateEmail, updatePassword } from 'firebase/auth'
 import {
   doc,
   getDoc,
@@ -55,17 +55,17 @@ function getAthleteCategory(age) {
   }
 }
 
-const professionsList = [
-  'Medical professional',
-  'Educator',
-  'CrossFit trainer',
-  'Military veteran',
-  'Active-duty military',
-  'Law enforcement officer',
-  'Firefighter',
-  'CrossFit affiliate owner',
-  'First responder',
-]
+// const professionsList = [
+//   'Medical professional',
+//   'Educator',
+//   'CrossFit trainer',
+//   'Military veteran',
+//   'Active-duty military',
+//   'Law enforcement officer',
+//   'Firefighter',
+//   'CrossFit affiliate owner',
+//   'First responder',
+// ]
 
 // Simple spinner component.
 const Spinner = () => (
@@ -102,6 +102,7 @@ const Settings = () => {
   const [sex, setSex] = useState('')
   const [profession, setProfession] = useState('')
   const [dob, setDob] = useState('')
+  // eslint-disable-next-line no-unused-vars
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -201,7 +202,6 @@ const Settings = () => {
       const scoresSnapshot = await getDocs(scoresQuery)
       const scoreDeletions = scoresSnapshot.docs.map(doc => deleteDoc(doc.ref))
       await Promise.all(scoreDeletions)
-      console.log('Scores deleted successfully')
 
       // Delete profile pics from storage.
       const storageFolderRef = ref(storage, `profilePics/${currentUser.uid}`)
@@ -219,7 +219,6 @@ const Settings = () => {
               })
           )
           await Promise.all(fileDeletions)
-          console.log('Profile pictures deleted successfully')
         } else {
           console.log(`No files found in ${storageFolderRef.fullPath}`)
         }
@@ -230,11 +229,10 @@ const Settings = () => {
       // Delete user document.
       const userRef = doc(firestore, 'users', currentUser.uid)
       await deleteDoc(userRef)
-      console.log('User document deleted successfully')
 
       // Delete auth account.
       await deleteUser(currentUser)
-      console.log('Auth account deleted successfully')
+
       navigate('/')
     } catch (err) {
       console.error('Error deleting account:', err)

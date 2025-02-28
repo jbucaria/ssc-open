@@ -53,7 +53,6 @@ const Leaderboard = () => {
         let fetchedScores = []
 
         if (workoutFilter === 'Overall') {
-          console.log('Entering Overall branch')
           const q = query(
             scoresRef,
             where('workoutName', 'in', availableWorkouts),
@@ -82,7 +81,6 @@ const Leaderboard = () => {
               score => score.scaling === scalingFilter
             )
           }
-          console.log('Filtered All Scores:', allScores)
 
           // Per-workout rankings
           const perWorkoutRankings = {}
@@ -168,10 +166,8 @@ const Leaderboard = () => {
           })
           await Promise.all(userPromises)
 
-          console.log('Setting scores for Overall:', aggregatedArray)
           setScores(aggregatedArray)
         } else {
-          console.log('Entering specific workout branch:', workoutFilter)
           let constraints = [where('workoutName', '==', workoutFilter)]
           if (workoutFilter !== '25.2') {
             constraints.push(where('completed', '==', true))
@@ -251,7 +247,6 @@ const Leaderboard = () => {
             )
           })
 
-          console.log('Setting scores for specific workout:', fetchedScores)
           setScores(fetchedScores)
         }
 
