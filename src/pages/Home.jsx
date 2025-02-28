@@ -14,6 +14,7 @@ import WorkoutCard from '@/components/WorkoutCard'
 import MyStandings from '@/components/MyStandings'
 
 const Home = () => {
+  // eslint-disable-next-line no-unused-vars
   const [scoreSubmitted, setScoreSubmitted] = useState(false)
   const [navigationTrigger, setNavigationTrigger] = useState(0) // Add state to trigger re-render
   const navigate = useNavigate()
@@ -49,7 +50,7 @@ const Home = () => {
     checkScore()
 
     return () => unsubscribe() // Cleanup listener on unmount
-  }, [auth.currentUser, workoutName])
+  }, [workoutName])
 
   // Force re-render or re-check on navigation back to /home
   useEffect(() => {
@@ -70,7 +71,7 @@ const Home = () => {
 
     // Run on mount and when location changes (navigation)
     checkScoreOnNavigation()
-  }, [location, auth.currentUser, workoutName]) // Depend on location to trigger on navigation
+  }, [location, workoutName]) // Depend on location to trigger on navigation
 
   return (
     <ThemedView styleType="default" className="min-h-screen w-screen">

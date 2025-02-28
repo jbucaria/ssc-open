@@ -10,6 +10,7 @@ import {
   query,
   where,
   getDocs,
+  addDoc,
 } from 'firebase/firestore'
 import {
   getDownloadURL,
@@ -113,6 +114,10 @@ const Settings = () => {
   const [editEmail, setEditEmail] = useState('')
   const [editPassword, setEditPassword] = useState('')
 
+  const [showFeedback, setShowFeedback] = useState(false)
+  const [feedbackText, setFeedbackText] = useState('')
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false)
+
   useEffect(() => {
     const fetchUserData = async () => {
       if (currentUser) {
@@ -136,6 +141,22 @@ const Settings = () => {
     }
     fetchUserData()
   }, [currentUser])
+
+  const handleFeedbackSubmit = async () => {
+    if (!feedbackText.trim()) return // Prevent submitting empty feedback.
+    try {
+      await addDoc(collection(firestore, 'feedback'), {
+        userId: currentUser.uid,
+        feedback: feedbackText,
+        createdAt: new Date(),
+      })
+      setFeedbackSubmitted(true)
+      setFeedbackText('')
+    } catch (error) {
+      console.error('Error submitting feedback:', error)
+      setError('Failed to submit feedback. Please try again.')
+    }
+  }
 
   // Handle profile picture upload (remains available in view mode).
   const handleProfilePicUpload = async e => {
@@ -291,7 +312,7 @@ const Settings = () => {
                 <img
                   src={profilePic}
                   alt="Profile"
-                  className="w-20 h-20 rounded-full object-cover border border-gray-300"
+                  className="w-20 h-20 rounded-full object-cover aspect-square border border-gray-300"
                 />
               ) : (
                 <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center border border-gray-300">
@@ -477,6 +498,50 @@ const Settings = () => {
                 Cancel
               </ThemedButton>
             </div>
+          </div>
+        )}
+      </div>
+      <div className="mt-8">
+        <ThemedButton
+          styleType="primary"
+          onClick={() => setShowFeedback(!showFeedback)}
+          className="w-full py-3 text-lg"
+        >
+          {showFeedback ? 'Hide Feedback Form' : 'Send Feedback / Report Issue'}
+        </ThemedButton>
+        {showFeedback && (
+          <div className="mt-4">
+            {feedbackSubmitted ? (
+              <ThemedText as="p" styleType="secondary" className="mb-4">
+                Thank you for your feedback!
+              </ThemedText>
+            ) : (
+              <>
+                <textarea
+                  value={feedbackText}
+                  onChange={e => setFeedbackText(e.target.value)}
+                  placeholder="Enter your feedback or report any issues here..."
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={4}
+                />
+                <div className="flex space-x-4 mt-2">
+                  <ThemedButton
+                    styleType="primary"
+                    onClick={handleFeedbackSubmit}
+                    className="flex-1 py-2"
+                  >
+                    Submit Feedback
+                  </ThemedButton>
+                  <ThemedButton
+                    styleType="secondary"
+                    onClick={() => setShowFeedback(false)}
+                    className="flex-1 py-2"
+                  >
+                    Cancel
+                  </ThemedButton>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

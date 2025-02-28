@@ -98,6 +98,11 @@ const Leaderboard = () => {
               )
               nonCompletedScores.sort((a, b) => b.reps - a.reps)
               sorted = [...completedScores, ...nonCompletedScores]
+            } else if (workout === '25.1') {
+              // NEW: Sort by reps descending for 25.1
+              sorted = [...workoutScores].sort(
+                (a, b) => Number(b.reps || 0) - Number(a.reps || 0)
+              )
             } else {
               const scalingOrder = { RX: 1, Scaled: 2, Foundations: 3 }
               sorted = [...workoutScores].sort((a, b) => {
@@ -112,6 +117,7 @@ const Leaderboard = () => {
                 return tbA - tbB
               })
             }
+
             perWorkoutRankings[workout] = sorted.map((score, index) => ({
               userId: score.userId,
               placement: index + 1,
@@ -209,9 +215,13 @@ const Leaderboard = () => {
               const orderA = scalingOrder[a.scaling] || 99
               const orderB = scalingOrder[b.scaling] || 99
               if (orderA !== orderB) return orderA - orderB
-              const finishA = timeToMinutes(a.finishTime)
-              const finishB = timeToMinutes(b.finishTime)
-              if (finishA !== finishB) return finishA - finishB
+
+              // For 25.1, sort by reps (descending) instead of finishTime.
+              const repsA = Number(a.reps || 0)
+              const repsB = Number(b.reps || 0)
+              if (repsA !== repsB) return repsB - repsA
+
+              // If needed, use tiebreakTime as a further fallback.
               const tbA = timeToMinutes(a.tiebreakTime)
               const tbB = timeToMinutes(b.tiebreakTime)
               return tbA - tbB
