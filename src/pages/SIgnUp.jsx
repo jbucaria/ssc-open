@@ -1,4 +1,3 @@
-// src/pages/Signup.jsx
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import {
@@ -22,20 +21,16 @@ const Signup = () => {
   const [showPassword, setShowPassword] = useState(false) // State for password visibility
   const navigate = useNavigate()
 
-  // Auto-format name to capitalize first letter of first and last name
+  // Format name to capitalize first letter of first and last name on save
   const formatName = input => {
     if (!input) return ''
-    const parts = input.trim().split(' ')
+    const parts = input.trim().split(/\s+/) // Split on one or more whitespace characters
     return parts
-      .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-      .join(' ')
-  }
-
-  // Handle name change with auto-formatting
-  const handleNameChange = e => {
-    const rawInput = e.target.value
-    const formattedName = formatName(rawInput)
-    setName(formattedName)
+      .map(part => {
+        if (part.length === 0) return '' // Handle empty parts (e.g., multiple spaces)
+        return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+      })
+      .join(' ') // Join with a single space
   }
 
   // Validate email format
@@ -70,9 +65,10 @@ const Signup = () => {
     try {
       const result = await createUserWithEmailAndPassword(auth, email, password)
       const user = result.user
+      const formattedName = formatName(name) // Format name on save
       await setDoc(doc(firestore, 'users', user.uid), {
         uid: user.uid,
-        displayName: name,
+        displayName: formattedName,
         email: user.email,
         photoURL: null,
         isMember: false,
@@ -122,7 +118,7 @@ const Signup = () => {
             type="text"
             placeholder="Full Name"
             value={name}
-            onChange={handleNameChange}
+            onChange={e => setName(e.target.value)} // Simplified to store raw input
             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
@@ -189,7 +185,7 @@ const Signup = () => {
             />
             <button
               type="button"
-              onClick={() => setShowPassword(!showPassword)}
+              onChange={() => setShowPassword(!showPassword)}
               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
             >
               {showPassword ? (

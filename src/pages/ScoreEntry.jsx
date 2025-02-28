@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   ThemedView,
@@ -18,6 +18,8 @@ import {
   getDocs,
   getDoc,
 } from 'firebase/firestore'
+
+// check on leaderboard variable handling
 
 // Function to compute rounds and extra reps for 25.1
 const computeRoundsAndReps25_1 = totalReps => {
@@ -76,13 +78,22 @@ const ScoreEntry = () => {
         const data = docSnap.data()
         setSubmittedScore(data)
         setScaling(data.scaling || 'RX')
-        setReps(data.reps || '')
+        setReps(data.reps?.toString() || '') // Ensure reps is a string for input
         setIsEditing(false)
         // Calculate rounds and reps for 25.1 if applicable
         if (workoutName === '25.1' && data.reps) {
-          const { rounds, extraReps } = computeRoundsAndReps25_1(data.reps)
-          setRoundsAndReps({ rounds, extraReps })
+          const repsNumber = Number(data.reps)
+          if (!isNaN(repsNumber) && repsNumber >= 0) {
+            const { rounds, extraReps } = computeRoundsAndReps25_1(repsNumber)
+            setRoundsAndReps({ rounds, extraReps })
+          } else {
+            setRoundsAndReps(null)
+          }
+        } else {
+          setRoundsAndReps(null)
         }
+      } else {
+        setRoundsAndReps(null) // Reset if no score exists
       }
     }
     fetchScore()
@@ -144,7 +155,8 @@ const ScoreEntry = () => {
         const userRef = doc(firestore, 'users', auth.currentUser.uid)
         await updateDoc(userRef, { onLeaderBoard: true })
       }
-      navigate('/home')
+      navigate('/home', { replace: true })
+      window.location.reload()
     } catch (err) {
       console.error('Error saving score:', err)
       setError('Failed to save score. Please try again.')
@@ -188,7 +200,7 @@ const ScoreEntry = () => {
           <ThemedText as="p" styleType="default">
             <strong>Total Reps:</strong> {submittedScore.reps}
           </ThemedText>
-          {workoutName === '25.1' && submittedScore.reps && (
+          {workoutName === '25.1' && submittedScore.reps && roundsAndReps && (
             <ThemedText as="p" styleType="default">
               <strong>Rounds + Reps:</strong>{' '}
               {`${roundsAndReps.rounds} rounds + ${roundsAndReps.extraReps} reps`}
@@ -238,12 +250,15 @@ const ScoreEntry = () => {
               onChange={e => setReps(e.target.value)}
               className="p-2 border border-gray-300 rounded w-full"
             />
-            {workoutName === '25.1' && reps && !isNaN(Number(reps)) && (
-              <ThemedText as="p" styleType="default" className="mt-2">
-                <strong>Rounds + Reps:</strong>{' '}
-                {`${roundsAndReps.rounds} rounds + ${roundsAndReps.extraReps} reps`}
-              </ThemedText>
-            )}
+            {workoutName === '25.1' &&
+              reps &&
+              !isNaN(Number(reps)) &&
+              roundsAndReps && (
+                <ThemedText as="p" styleType="default" className="mt-2">
+                  <strong>Rounds + Reps:</strong>{' '}
+                  {`${roundsAndReps.rounds} rounds + ${roundsAndReps.extraReps} reps`}
+                </ThemedText>
+              )}
           </div>
           {error && (
             <ThemedText as="p" styleType="danger" className="text-sm">
