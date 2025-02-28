@@ -1,4 +1,3 @@
-// src/components/MyStandings.jsx
 import { useState, useEffect } from 'react'
 import {
   ThemedView,
@@ -18,6 +17,16 @@ const MyStandings = () => {
   const [error, setError] = useState(null)
   const currentUser = auth.currentUser
   const navigate = useNavigate()
+
+  // Helper function to convert a number into its ordinal representation.
+  const getOrdinal = n => {
+    const j = n % 10,
+      k = n % 100
+    if (j === 1 && k !== 11) return n + 'st'
+    if (j === 2 && k !== 12) return n + 'nd'
+    if (j === 3 && k !== 13) return n + 'rd'
+    return n + 'th'
+  }
 
   useEffect(() => {
     if (!currentUser) return
@@ -56,6 +65,7 @@ const MyStandings = () => {
           const aggregatedArray = Object.values(aggregated)
           // Sort aggregated users by totalPoints (lower is better).
           aggregatedArray.sort((a, b) => a.totalPoints - b.totalPoints)
+          const totalParticipants = aggregatedArray.length
           // Determine the overall placement of the current user.
           const placement =
             aggregatedArray.findIndex(user => user.userId === currentUser.uid) +
@@ -65,6 +75,7 @@ const MyStandings = () => {
           )
           setMyStandings({
             overallPlacement: placement,
+            totalParticipants: totalParticipants,
             ...myResult,
           })
           setLoading(false)
@@ -83,14 +94,13 @@ const MyStandings = () => {
     return unsubscribe
   }, [currentUser])
 
-  // New useEffect: Listen to the current user's document to update photoURL.
+  // Listen to the current user's document to update photoURL if it changes.
   useEffect(() => {
     if (!currentUser) return
     const userDocRef = doc(firestore, 'users', currentUser.uid)
     const unsubscribeUser = onSnapshot(userDocRef, docSnap => {
       if (docSnap.exists()) {
         const userData = docSnap.data()
-        // Update myStandings with the latest photoURL if available.
         setMyStandings(prev =>
           prev ? { ...prev, photoURL: userData.photoURL } : prev
         )
@@ -151,7 +161,8 @@ const MyStandings = () => {
     >
       <ThemedHeader styleType="default" className="mb-4 p-4">
         <ThemedText as="h2" styleType="primary" className="text-2xl font-bold">
-          Overall Placement: {myStandings.overallPlacement}
+          Overall Placement: {getOrdinal(myStandings.overallPlacement)} of{' '}
+          {myStandings.totalParticipants}
         </ThemedText>
       </ThemedHeader>
       <div className="flex items-center space-x-4 mb-4">
