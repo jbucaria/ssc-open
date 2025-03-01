@@ -40,11 +40,7 @@ const Leaderboard = () => {
 
   useEffect(() => {
     const fetchScores = async () => {
-      console.log('Starting fetchScores...')
-      console.log('Current user:', currentUser) // Log authentication status
-
       if (!currentUser) {
-        console.log('User not authenticated, setting error and returning')
         setError('You must be logged in to view the leaderboard.')
         setLoading(false)
         return
@@ -53,65 +49,47 @@ const Leaderboard = () => {
       setLoading(true)
       try {
         const scoresRef = collection(firestore, 'scores')
-        console.log('Scores collection reference:', scoresRef.path)
-
         let fetchedScores = []
 
         if (workoutFilter === 'Overall') {
-          console.log('Fetching Overall leaderboard...')
           const q = query(
             scoresRef,
             where('workoutName', 'in', availableWorkouts),
             where('completed', '==', true)
           )
-          console.log('Query constructed:', q)
 
           const querySnapshot = await getDocs(q)
-          console.log(
-            'Query snapshot received, documents count:',
-            querySnapshot.size
-          )
-
           let allScores = querySnapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data(),
           }))
-          console.log('Fetched scores:', allScores)
 
           // Client-side filtering
           if (sexFilter !== 'All') {
-            console.log('Applying sex filter:', sexFilter)
             allScores = allScores.filter(
               score =>
                 score.sex && score.sex.toLowerCase() === sexFilter.toLowerCase()
             )
           }
           if (ageGroupFilter !== 'Overall') {
-            console.log('Applying age group filter:', ageGroupFilter)
             allScores = allScores.filter(
               score => score.athleteCategory === ageGroupFilter
             )
           }
           if (scalingFilter !== 'All') {
-            console.log('Applying scaling filter:', scalingFilter)
             allScores = allScores.filter(
               score => score.scaling === scalingFilter
             )
           }
-          console.log('Filtered scores:', allScores)
 
           // Per-workout rankings
           const perWorkoutRankings = {}
           availableWorkouts.forEach(workout => {
-            console.log(`Processing workout: ${workout}`)
             const workoutScores = allScores.filter(
               s => s.workoutName === workout
             )
-            console.log(`Scores for ${workout}:`, workoutScores)
-
             let sorted = []
             if (workout === '25.2') {
-              console.log('Sorting 25.2...')
               const completedScores = workoutScores.filter(s => s.completed)
               const nonCompletedScores = workoutScores.filter(s => !s.completed)
               completedScores.sort(
@@ -121,12 +99,10 @@ const Leaderboard = () => {
               nonCompletedScores.sort((a, b) => b.reps - a.reps)
               sorted = [...completedScores, ...nonCompletedScores]
             } else if (workout === '25.1') {
-              console.log('Sorting 25.1 by reps descending...')
               sorted = [...workoutScores].sort(
                 (a, b) => Number(b.reps || 0) - Number(a.reps || 0)
               )
             } else {
-              console.log('Sorting 25.3...')
               const scalingOrder = { RX: 1, Scaled: 2, Foundations: 3 }
               sorted = [...workoutScores].sort((a, b) => {
                 const orderA = scalingOrder[a.scaling] || 99
@@ -141,7 +117,6 @@ const Leaderboard = () => {
               })
             }
 
-            console.log(`Sorted scores for ${workout}:`, sorted)
             perWorkoutRankings[workout] = sorted.map((score, index) => ({
               userId: score.userId,
               placement: index + 1,
@@ -169,10 +144,8 @@ const Leaderboard = () => {
               }
             }
           })
-          console.log('Aggregated initial state:', aggregated)
 
           availableWorkouts.forEach(workout => {
-            console.log(`Aggregating rankings for ${workout}`)
             const rankings = perWorkoutRankings[workout] || []
             rankings.forEach(r => {
               if (aggregated[r.userId]) {
@@ -184,17 +157,10 @@ const Leaderboard = () => {
             })
           })
           let aggregatedArray = Object.values(aggregated)
-          console.log('Aggregated array before sorting:', aggregatedArray)
-
           aggregatedArray.sort((a, b) => a.totalPoints - b.totalPoints)
-          console.log(
-            'Aggregated array after sorting by totalPoints:',
-            aggregatedArray
-          )
 
           // Fetch user profiles
           const userPromises = aggregatedArray.map(async user => {
-            console.log(`Fetching user profile for userId: ${user.userId}`)
             const userDocRef = doc(firestore, 'users', user.userId)
             const userSnap = await getDoc(userDocRef)
             if (userSnap.exists()) {
@@ -202,20 +168,12 @@ const Leaderboard = () => {
               user.displayName = data.displayName || 'Anonymous'
               user.athleteCategory = data.athleteCategory || 'Unknown'
               user.photoURL = data.photoURL || null
-              console.log(`User profile fetched for ${user.userId}:`, data)
-            } else {
-              console.log(`No user document found for userId: ${user.userId}`)
             }
           })
           await Promise.all(userPromises)
-          console.log(
-            'Final aggregated array with user profiles:',
-            aggregatedArray
-          )
 
           setScores(aggregatedArray)
         } else {
-          console.log('Fetching specific workout:', workoutFilter)
           let constraints = [where('workoutName', '==', workoutFilter)]
           if (workoutFilter !== '25.2') {
             constraints.push(where('completed', '==', true))
@@ -230,22 +188,14 @@ const Leaderboard = () => {
             constraints.push(where('scaling', '==', scalingFilter))
           }
           const q = query(scoresRef, ...constraints)
-          console.log('Specific workout query:', q)
 
           const querySnapshot = await getDocs(q)
-          console.log(
-            'Specific workout query snapshot, documents count:',
-            querySnapshot.size
-          )
-
           fetchedScores = querySnapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data(),
           }))
-          console.log('Fetched specific workout scores:', fetchedScores)
 
           if (workoutFilter === '25.2') {
-            console.log('Sorting 25.2...')
             const completedScores = fetchedScores.filter(s => s.completed)
             const nonCompletedScores = fetchedScores.filter(s => !s.completed)
             completedScores.sort(
@@ -255,14 +205,12 @@ const Leaderboard = () => {
             nonCompletedScores.sort((a, b) => b.reps - a.reps)
             fetchedScores = [...completedScores, ...nonCompletedScores]
           } else if (workoutFilter === '25.1') {
-            console.log('Sorting 25.1 by reps descending...')
             fetchedScores.sort((a, b) => b.reps - a.reps)
             fetchedScores = fetchedScores.map(score => {
               const { rounds, extraReps } = computeRoundsAndReps25_1(score.reps)
               return { ...score, rounds, extraReps }
             })
           } else {
-            console.log('Sorting 25.3...')
             const scalingOrder = { RX: 1, Scaled: 2, Foundations: 3 }
             fetchedScores.sort((a, b) => {
               const orderA = scalingOrder[a.scaling] || 99
@@ -277,16 +225,13 @@ const Leaderboard = () => {
             })
           }
 
-          console.log('Sorted specific workout scores:', fetchedScores)
           fetchedScores = fetchedScores.map((score, index) => ({
             ...score,
             rankingPoints: index + 1,
           }))
-          console.log('Scores with ranking points:', fetchedScores)
 
           // Fetch user data for each score
           const userPromises = fetchedScores.map(async score => {
-            console.log(`Fetching user data for score userId: ${score.userId}`)
             const userDocRef = doc(firestore, 'users', score.userId)
             const userSnap = await getDoc(userDocRef)
             if (userSnap.exists()) {
@@ -294,20 +239,12 @@ const Leaderboard = () => {
               score.photoURL = userData.photoURL || null
               score.displayName =
                 userData.displayName || score.displayName || 'Anonymous'
-              console.log(`User data fetched for ${score.userId}:`, userData)
-            } else {
-              console.log(`No user document found for userId: ${score.userId}`)
             }
           })
           await Promise.all(userPromises)
-          console.log(
-            'Final specific workout scores with user data:',
-            fetchedScores
-          )
 
           // Update Firestore asynchronously
           fetchedScores.forEach(score => {
-            console.log(`Updating rankingPoints for score ${score.id}`)
             const scoreDocRef = doc(firestore, 'scores', score.id)
             updateDoc(scoreDocRef, {
               rankingPoints: score.rankingPoints,
@@ -319,7 +256,6 @@ const Leaderboard = () => {
           setScores(fetchedScores)
         }
 
-        console.log('Setting scores:', scores)
         setLoading(false)
       } catch (err) {
         console.error('Error fetching leaderboard:', err)
@@ -354,7 +290,6 @@ const Leaderboard = () => {
   }
 
   if (!currentUser) {
-    console.log('User not logged in, rendering login message')
     return (
       <ThemedText as="p" styleType="danger">
         You are not logged in.
@@ -363,7 +298,6 @@ const Leaderboard = () => {
   }
 
   if (loading) {
-    console.log('Leaderboard loading...')
     return (
       <ThemedText as="p" styleType="secondary">
         Loading...
@@ -372,7 +306,6 @@ const Leaderboard = () => {
   }
 
   if (error) {
-    console.log('Leaderboard error:', error)
     return (
       <ThemedText as="p" styleType="danger">
         {error}

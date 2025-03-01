@@ -31,9 +31,6 @@ const AppHeader = ({ navigateTo }) => {
     closeDrawer()
   }
 
-  // Debug logo import
-  console.log('Logo:', logo)
-
   return (
     <>
       <ThemedHeader

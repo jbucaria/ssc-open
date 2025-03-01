@@ -4,6 +4,7 @@ import {
   ThemedView,
   ThemedText,
   ThemedHeader,
+  ThemedButton, // Assuming ThemedButton is available for the toggle
 } from '@/components/ThemedComponents'
 import { useNavigate } from 'react-router-dom'
 import { firestore, auth } from '@/firebaseConfig'
@@ -33,6 +34,9 @@ const MyStandings = () => {
   const [error, setError] = useState(null)
   const currentUser = auth.currentUser
   const navigate = useNavigate()
+
+  // Add state for toggle between Overall and Age Group placement
+  const [placementType, setPlacementType] = useState('Overall') // Default to Overall
 
   // Helper function to convert a number into its ordinal representation.
   const getOrdinal = n => {
@@ -65,6 +69,7 @@ const MyStandings = () => {
         const userSnap = await getDoc(userDocRef)
         if (userSnap.exists()) {
           const userData = userSnap.data()
+
           setMyStandings({
             userId: currentUser.uid,
             displayName: userData.displayName || 'Anonymous',
@@ -112,7 +117,7 @@ const MyStandings = () => {
             id: doc.id,
             ...doc.data(),
           }))
-          console.log('Scores listener triggered - allScores:', allScores)
+
           // Group scores by userId and calculate dynamic placements
           const aggregated = {}
           availableWorkouts.forEach(workout => {
@@ -179,6 +184,7 @@ const MyStandings = () => {
                     userId: score.userId,
                     totalPoints: 0,
                     perWorkout: {},
+                    athleteCategory: score.athleteCategory || 'Unknown', // Store athleteCategory for filtering
                   }
                 }
                 aggregated[score.userId].totalPoints += placement
@@ -202,21 +208,32 @@ const MyStandings = () => {
 
           const aggregatedArray = Object.values(aggregated)
           // Sort aggregated users by totalPoints (lower is better).
-          aggregatedArray.sort((a, b) => a.totalPoints - b.totalPoints)
-          const totalParticipants = aggregatedArray.length
+          // Filter based on placementType
+          let filteredAggregatedArray = aggregatedArray
+          const userCategory = myStandings?.athleteCategory || 'Unknown'
+          if (placementType === 'Age Group') {
+            filteredAggregatedArray = aggregatedArray.filter(
+              user => user.athleteCategory === userCategory
+            )
+          }
+
+          filteredAggregatedArray.sort((a, b) => a.totalPoints - b.totalPoints)
+          const totalParticipants = filteredAggregatedArray.length
 
           // Update current user's standings, ensuring real-time updates and handling undefined
-          const currentUserScoreData = aggregatedArray.find(
+          const currentUserScoreData = filteredAggregatedArray.find(
             user => user.userId === currentUser.uid
           ) || {
             userId: currentUser.uid,
             totalPoints: 0,
             perWorkout: {},
+            athleteCategory: userCategory,
           }
 
           const placement =
-            aggregatedArray.findIndex(user => user.userId === currentUser.uid) +
-              1 || totalParticipants
+            filteredAggregatedArray.findIndex(
+              user => user.userId === currentUser.uid
+            ) + 1 || totalParticipants
           setMyStandings(prev => {
             const newStandings = {
               overallPlacement: placement,
@@ -234,9 +251,10 @@ const MyStandings = () => {
               prev?.totalPoints !== newStandings.totalPoints ||
               JSON.stringify(prev?.perWorkout) !==
                 JSON.stringify(newStandings.perWorkout) ||
-              prev?.onLeaderBoard !== newStandings.onLeaderBoard
+              prev?.onLeaderBoard !== newStandings.onLeaderBoard ||
+              prev?.overallPlacement !== newStandings.overallPlacement ||
+              prev?.totalParticipants !== newStandings.totalParticipants
             if (hasChanged) {
-              console.log('Standings updated:', newStandings)
               return newStandings
             }
             return prev // No change, avoid re-render
@@ -252,7 +270,7 @@ const MyStandings = () => {
       }
     )
     return unsubscribe
-  }, [currentUser])
+  }, [currentUser, placementType, myStandings, myStandings?.athleteCategory]) // Added placementType as dependency to re-run on toggle
 
   // Listen to the current user's document to update photoURL, athleteCategory, and onLeaderBoard if they change.
   useEffect(() => {
@@ -263,7 +281,7 @@ const MyStandings = () => {
       docSnap => {
         if (docSnap.exists()) {
           const userData = docSnap.data()
-          console.log('User listener triggered - userData:', userData)
+
           setMyStandings(prev => {
             const newStandings = prev
               ? {
@@ -287,11 +305,10 @@ const MyStandings = () => {
                   totalPoints: 0,
                   perWorkout: {},
                 }
-            console.log('User data updated:', newStandings)
+
             return newStandings // Always update to ensure onLeaderBoard changes trigger re-renders
           })
         } else {
-          console.log('No user data found for:', currentUser.uid)
           setMyStandings({
             userId: currentUser.uid,
             displayName: 'Anonymous',
@@ -357,12 +374,37 @@ const MyStandings = () => {
     navigate('/leaderboard')
   }
 
+  // Prevent event bubbling for toggle buttons
+  const handleTogglePlacement = (type, event) => {
+    event.stopPropagation() // Prevent the click from bubbling up to the card's onClick
+    setPlacementType(type)
+  }
+
   return (
     <ThemedView
       styleType="default"
       className="p-6 rounded shadow-lg bg-gray-100 cursor-pointer hover:shadow-xl transition-shadow"
       onClick={handlePress}
     >
+      {/* Toggle between Overall and Age Group Placement */}
+      {myStandings.onLeaderBoard && (
+        <div className="mb-4 flex justify-center space-x-4">
+          <ThemedButton
+            styleType={placementType === 'Overall' ? 'primary' : 'secondary'}
+            onClick={event => handleTogglePlacement('Overall', event)}
+            className="px-4 py-2"
+          >
+            Overall
+          </ThemedButton>
+          <ThemedButton
+            styleType={placementType === 'Age Group' ? 'primary' : 'secondary'}
+            onClick={event => handleTogglePlacement('Age Group', event)}
+            className="px-4 py-2"
+          >
+            Age Group
+          </ThemedButton>
+        </div>
+      )}
       {myStandings.onLeaderBoard && (
         <ThemedHeader styleType="default" className="mb-4 p-4">
           <ThemedText
@@ -370,13 +412,18 @@ const MyStandings = () => {
             styleType="primary"
             className="text-2xl font-bold"
           >
-            Overall Placement: {getOrdinal(myStandings.overallPlacement)} of{' '}
-            {myStandings.totalParticipants}
+            {placementType === 'Overall'
+              ? ` ${getOrdinal(myStandings.overallPlacement)} of ${
+                  myStandings.totalParticipants
+                }`
+              : `${getOrdinal(myStandings.overallPlacement)} of ${
+                  myStandings.totalParticipants
+                }`}
           </ThemedText>
         </ThemedHeader>
       )}
 
-      <div className="flex items-center space-x-4 mb-4">
+      <div className="flex items-center justify-center it space-x-4 mb-1">
         {myStandings.photoURL ? (
           <img
             src={myStandings.photoURL}
@@ -404,13 +451,13 @@ const MyStandings = () => {
         </div>
       </div>
       <div>
-        <ThemedText
+        {/* <ThemedText
           as="h3"
           styleType="primary"
           className="text-xl font-bold mb-2"
         >
           Workout Results
-        </ThemedText>
+        </ThemedText> */}
         <div className="space-y-2">
           {availableWorkouts.map(workout => (
             <div key={workout} className="flex justify-between border-b pb-1">

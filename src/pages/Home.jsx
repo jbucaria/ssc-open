@@ -35,7 +35,6 @@ const Home = () => {
       q,
       querySnapshot => {
         setScoreSubmitted(!querySnapshot.empty)
-        console.log('Score status updated:', !querySnapshot.empty)
       },
       err => {
         console.error('Error listening to scores:', err)
@@ -66,7 +65,6 @@ const Home = () => {
       const querySnapshot = await getDocs(q)
       setScoreSubmitted(!querySnapshot.empty)
       setNavigationTrigger(prev => prev + 1) // Trigger re-render of MyStandings
-      console.log('Re-checked score on navigation:', !querySnapshot.empty)
     }
 
     // Run on mount and when location changes (navigation)
