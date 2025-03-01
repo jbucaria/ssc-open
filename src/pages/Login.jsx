@@ -19,7 +19,7 @@ import logo from '@/assets/logo1.png'
 import cfLogo from '@/assets/cg25.png'
 import { FaGoogle } from 'react-icons/fa' // For Google logo
 
-const MEMBERSHIP_CODE = '2023' // Replace with your desired membership code
+const MEMBERSHIP_CODE = 'sscopen2025' // Replace with your desired membership code
 
 const Login = () => {
   const [email, setEmail] = useState('')
@@ -27,7 +27,7 @@ const Login = () => {
   const [error, setError] = useState(null)
   const [showMembershipModal, setShowMembershipModal] = useState(false)
   const [membershipInput, setMembershipInput] = useState('')
-  const [pendingUser] = useState(null)
+  const [pendingUser, setPendingUser] = useState(null) // Initialize as null, but we'll set it on login
   const [showForgotPassword, setShowForgotPassword] = useState(false)
   const [forgotEmail, setForgotEmail] = useState('')
   const [forgotError, setForgotError] = useState(null)
@@ -44,37 +44,51 @@ const Login = () => {
 
   // Create or update the user record in Firestore and return the data
   const handleUserFirestore = async user => {
-    const userRef = doc(firestore, 'users', user.uid)
-    const userSnap = await getDoc(userRef)
-    if (!userSnap.exists()) {
-      await setDoc(userRef, {
-        uid: user.uid,
-        displayName:
-          user.displayName || user.email?.split('@')[0] || 'Anonymous',
-        email: user.email || '',
-        photoURL: user.photoURL || null,
-        isMember: false,
-        onLeaderBoard: false,
-        createdAt: new Date(),
-      })
-      return { isMember: false }
-    } else {
-      return userSnap.data()
+    try {
+      const userRef = doc(firestore, 'users', user.uid)
+      const userSnap = await getDoc(userRef)
+      if (!userSnap.exists()) {
+        await setDoc(userRef, {
+          uid: user.uid,
+          displayName:
+            user.displayName || user.email?.split('@')[0] || 'Anonymous',
+          email: user.email || '',
+          photoURL: user.photoURL || null,
+          isMember: false,
+          onLeaderBoard: false,
+          createdAt: new Date(),
+        })
+        return { isMember: false }
+      } else {
+        const data = userSnap.data()
+        return { isMember: data.isMember !== undefined ? data.isMember : false }
+      }
+    } catch (err) {
+      console.error('Error fetching user data:', err)
+      setError('Failed to fetch user data. Please try again.')
+      return { isMember: false } // Default to non-member on error
     }
   }
 
   const handleMembershipSubmit = async () => {
     if (membershipInput === MEMBERSHIP_CODE) {
-      const userRef = doc(firestore, 'users', pendingUser.uid)
-      await setDoc(userRef, { isMember: true }, { merge: true })
-      setShowMembershipModal(false)
-      navigate(pendingUser.isMember ? '/home' : '/additionaldetails') // Redirect based on isMember
+      if (pendingUser) {
+        const userRef = doc(firestore, 'users', pendingUser.uid)
+        await setDoc(userRef, { isMember: true }, { merge: true })
+        setShowMembershipModal(false)
+        setPendingUser(null) // Clear pending user after verification
+        navigate(pendingUser.isMember ? '/home' : '/additionaldetails')
+      } else {
+        setError('No pending user found. Please log in again.')
+        setShowMembershipModal(false)
+      }
     } else {
       window.alert(
         'Invalid Code: The membership code you entered is incorrect.'
       )
       await signOut(auth)
       setShowMembershipModal(false)
+      setPendingUser(null) // Clear pending user on invalid code
     }
   }
 
@@ -94,7 +108,12 @@ const Login = () => {
       const result = await signInWithEmailAndPassword(auth, email, password)
       const user = result.user
       const userData = await handleUserFirestore(user)
-      navigate(userData.isMember ? '/home' : '/additionaldetails')
+      if (userData.isMember) {
+        navigate('/home')
+      } else {
+        setPendingUser(user) // Store the user for membership verification
+        setShowMembershipModal(true) // Show membership modal for non-members
+      }
     } catch (err) {
       console.error('Email Sign-In Error:', err)
       setError(err.message)
@@ -107,7 +126,12 @@ const Login = () => {
       const result = await signInWithPopup(auth, provider)
       const user = result.user
       const userData = await handleUserFirestore(user)
-      navigate(userData.isMember ? '/home' : '/additionaldetails')
+      if (userData.isMember) {
+        navigate('/home')
+      } else {
+        setPendingUser(user) // Store the user for membership verification
+        setShowMembershipModal(true) // Show membership modal for non-members
+      }
     } catch (err) {
       console.error('Google Sign-In Error:', err)
       setError(err.message)
@@ -194,7 +218,7 @@ const Login = () => {
             className="text-sm text-center"
           >
             <Link to="/signup" className="text-blue-500 hover:underline">
-              Don&apos;t have an account? Sign up
+              Don't have an account? Sign up
             </Link>
           </ThemedText>
           <ThemedText
@@ -206,7 +230,7 @@ const Login = () => {
               to="#"
               onClick={e => {
                 e.preventDefault()
-                setShowForgotPassword(false)
+                setShowForgotPassword(true)
               }}
               className="text-blue-500 hover:underline"
             >
@@ -285,7 +309,7 @@ const Login = () => {
             </ThemedText>
             <input
               type="text"
-              placeholder="Membership Code"
+              placeholder="(case-sensitive)"
               value={membershipInput}
               onChange={e => setMembershipInput(e.target.value)}
               className="w-full p-3 border border-gray-300 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"

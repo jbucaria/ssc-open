@@ -60,6 +60,7 @@ const AdditionalDetails = () => {
     'Firefighter',
     'CrossFit affiliate owner',
     'First responder',
+    'Not listed',
   ]
 
   // Handle file input change to upload profile picture.

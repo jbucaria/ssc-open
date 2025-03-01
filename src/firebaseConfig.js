@@ -6,13 +6,13 @@ import { getStorage } from 'firebase/storage'
 import { getAnalytics } from 'firebase/analytics'
 
 const firebaseConfig = {
-  apiKey: 'AIzaSyDEKqsIHHrhVLPt5bwV6dSkBzdAdCsg5no',
-  authDomain: 'ssc-open.firebaseapp.com',
-  projectId: 'ssc-open',
-  storageBucket: 'ssc-open.firebasestorage.app',
-  messagingSenderId: '893001288341',
-  appId: '1:893001288341:web:b4fbdea5937a57ee80699c',
-  measurementId: 'G-EC8240R48X',
+  apiKey: 'AIzaSyB2DvPSqpsj-1kIqt6NfU83Ge8wGyOTX-w',
+  authDomain: 'sscopenleaderboard.firebaseapp.com',
+  projectId: 'sscopenleaderboard',
+  storageBucket: 'sscopenleaderboard.firebasestorage.app',
+  messagingSenderId: '819800294351',
+  appId: '1:819800294351:web:09f19b18f3041db0b508ba',
+  measurementId: 'G-SLRCYN3MC2',
 }
 
 // Initialize Firebase
