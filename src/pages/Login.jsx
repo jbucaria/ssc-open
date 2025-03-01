@@ -27,10 +27,11 @@ const Login = () => {
   const [error, setError] = useState(null)
   const [showMembershipModal, setShowMembershipModal] = useState(false)
   const [membershipInput, setMembershipInput] = useState('')
-  const [pendingUser, setPendingUser] = useState(null) // Initialize as null, but we'll set it on login
+  const [pendingUser, setPendingUser] = useState(null)
   const [showForgotPassword, setShowForgotPassword] = useState(false)
   const [forgotEmail, setForgotEmail] = useState('')
   const [forgotError, setForgotError] = useState(null)
+  const [termsAccepted, setTermsAccepted] = useState(false) // New state for terms acceptance
   const navigate = useNavigate()
 
   // Validate email format
@@ -57,6 +58,7 @@ const Login = () => {
           isMember: false,
           onLeaderBoard: false,
           createdAt: new Date(),
+          termsAccepted: termsAccepted, // Store terms acceptance
         })
         return { isMember: false }
       } else {
@@ -104,6 +106,12 @@ const Login = () => {
       )
       return
     }
+    if (!termsAccepted) {
+      setError(
+        'You must accept the Terms of Service and Privacy Policy to proceed.'
+      )
+      return
+    }
     try {
       const result = await signInWithEmailAndPassword(auth, email, password)
       const user = result.user
@@ -121,7 +129,16 @@ const Login = () => {
   }
 
   const handleGoogleSignIn = async () => {
+    if (!termsAccepted) {
+      setError(
+        'You must accept the Terms of Service and Privacy Policy to proceed.'
+      )
+      return
+    }
     const provider = new GoogleAuthProvider()
+    provider.setCustomParameters({
+      prompt: 'select_account', // Ensure user selects an account
+    })
     try {
       const result = await signInWithPopup(auth, provider)
       const user = result.user
@@ -134,7 +151,9 @@ const Login = () => {
       }
     } catch (err) {
       console.error('Google Sign-In Error:', err)
-      setError(err.message)
+      setError(
+        err.message || 'Failed to sign in with Google. Please try again.'
+      )
     }
   }
 
@@ -149,7 +168,6 @@ const Login = () => {
       setForgotError(null)
       setShowForgotPassword(false)
       setError('Password reset email sent. Please check your inbox.')
-      // Redirect to login page after a short delay (user needs to log in again)
       setTimeout(() => navigate('/login'), 2000)
     } catch (err) {
       console.error('Forgot Password Error:', err)
@@ -199,6 +217,36 @@ const Login = () => {
               onChange={e => setPassword(e.target.value)}
               className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+          </div>
+          {/* Terms of Service and Privacy Policy Checkbox */}
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              checked={termsAccepted}
+              onChange={e => setTermsAccepted(e.target.checked)}
+              className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <ThemedText as="p" styleType="secondary" className="text-sm">
+              I agree to the{' '}
+              <a
+                href="/terms-of-service"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:underline"
+              >
+                Terms of Service
+              </a>{' '}
+              and{' '}
+              <a
+                href="/privacy-policy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:underline"
+              >
+                Privacy Policy
+              </a>
+              .
+            </ThemedText>
           </div>
           {error && (
             <ThemedText as="p" styleType="danger" className="text-sm mb-2">
@@ -309,7 +357,7 @@ const Login = () => {
             </ThemedText>
             <input
               type="text"
-              placeholder="(case-sensitive)"
+              placeholder="Membership Code"
               value={membershipInput}
               onChange={e => setMembershipInput(e.target.value)}
               className="w-full p-3 border border-gray-300 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"

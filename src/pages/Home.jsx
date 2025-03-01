@@ -12,6 +12,7 @@ import { ThemedView } from '@/components/ThemedComponents'
 import AppHeader from '@/components/AppHeader'
 import WorkoutCard from '@/components/WorkoutCard'
 import MyStandings from '@/components/MyStandings'
+import Footer from '@/components/Footer'
 
 const Home = () => {
   // eslint-disable-next-line no-unused-vars
@@ -84,6 +85,7 @@ const Home = () => {
           <WorkoutCard />
         </div>
       </div>
+      <Footer />
     </ThemedView>
   )
 }
