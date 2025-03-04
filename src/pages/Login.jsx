@@ -85,12 +85,17 @@ const Login = () => {
         setShowMembershipModal(false)
       }
     } else {
+      // Blur the currently focused element to dismiss the keyboard on mobile
+      if (document.activeElement) {
+        document.activeElement.blur()
+      }
       window.alert(
         'Invalid Code: The membership code you entered is incorrect.'
       )
       await signOut(auth)
       setShowMembershipModal(false)
       setPendingUser(null) // Clear pending user on invalid code
+      setMembershipInput('') // Clear the input field
     }
   }
 
@@ -349,6 +354,7 @@ const Login = () => {
               type="text"
               placeholder="Membership Code"
               value={membershipInput}
+              style={{ textTransform: 'lowercase' }}
               onChange={e => setMembershipInput(e.target.value)}
               className="w-full p-3 border border-gray-300 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
