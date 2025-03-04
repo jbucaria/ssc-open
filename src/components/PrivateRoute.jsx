@@ -1,5 +1,6 @@
+/* eslint-disable react/prop-types */
 // src/components/PrivateRoute.jsx
-import React, { useContext } from 'react'
+import { useContext } from 'react'
 import { Navigate } from 'react-router-dom'
 import { AuthContext } from '@/context/AuthContext' // your context
 

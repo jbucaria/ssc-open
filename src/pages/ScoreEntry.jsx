@@ -137,7 +137,6 @@ const ScoreEntry = () => {
       userId: auth.currentUser?.uid,
       displayName: userDetails.displayName,
       sex: userDetails.sex,
-      athleteCategory: userDetails.athleteCategory,
       createdAt: serverTimestamp(),
     }
 

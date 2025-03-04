@@ -10,6 +10,7 @@ import Settings from '@/pages/Settings'
 import AdditionalDetails from '@/pages/AdditionalDetails'
 import ScoreEntry from './pages/ScoreEntry'
 import Signup from './pages/SIgnUp'
+import PrivacyAndTerms from './pages/PrivacyandTerms'
 
 const App = () => (
   <AuthProvider>
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/signup" element={<Signup />} />
           <Route path="/scoreentry" element={<ScoreEntry />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/privacyandterms" element={<PrivacyAndTerms />} />
         </Routes>
       </Router>
     </UserProvider>

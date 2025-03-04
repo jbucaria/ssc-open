@@ -19,7 +19,7 @@ import logo from '@/assets/logo1.png'
 import cfLogo from '@/assets/cg25.png'
 import { FaGoogle } from 'react-icons/fa' // For Google logo
 
-const MEMBERSHIP_CODE = 'sscopen2025' // Replace with your desired membership code
+const MEMBERSHIP_CODE = import.meta.env.VITE_MEMBERSHIP_CODE
 
 const Login = () => {
   const [email, setEmail] = useState('')
@@ -229,23 +229,13 @@ const Login = () => {
             <ThemedText as="p" styleType="secondary" className="text-sm">
               I agree to the{' '}
               <a
-                href="/terms-of-service"
+                href="/PrivacyAndTerms"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-500 hover:underline"
               >
                 Terms of Service
-              </a>{' '}
-              and{' '}
-              <a
-                href="/privacy-policy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 hover:underline"
-              >
-                Privacy Policy
               </a>
-              .
             </ThemedText>
           </div>
           {error && (
