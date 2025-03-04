@@ -1,7 +1,7 @@
 // src/pages/AdditionalDetails.jsx
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { doc, setDoc, getDoc } from 'firebase/firestore'
+import { doc, setDoc } from 'firebase/firestore'
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
 import { auth, firestore, storage } from '@/firebaseConfig'
 import {
@@ -9,32 +9,6 @@ import {
   ThemedText,
   ThemedButton,
 } from '@/components/ThemedComponents'
-
-// Calculate the athlete's age as of December 31st of the current year.
-function calculateAgeAtEndOfYear(dob) {
-  const birthDate = new Date(dob)
-  const currentYear = new Date().getFullYear()
-  return currentYear - birthDate.getFullYear()
-}
-
-// Determine athlete category based on age as of December 31st.
-function getAthleteCategory(age) {
-  if (age >= 35) {
-    if (age <= 39) return 'Masters 35-39'
-    else if (age <= 44) return 'Masters 40-44'
-    else if (age <= 49) return 'Masters 45-49'
-    else if (age <= 54) return 'Masters 50-54'
-    else if (age <= 59) return 'Masters 55-59'
-    else if (age <= 64) return 'Masters 60-64'
-    else return 'Masters 65+'
-  } else if (age >= 14 && age <= 15) {
-    return 'Teen 14-15'
-  } else if (age >= 16 && age <= 17) {
-    return 'Teen 16-17'
-  } else {
-    return 'Open'
-  }
-}
 
 const AdditionalDetails = () => {
   const [sex, setSex] = useState('')
@@ -87,12 +61,9 @@ const AdditionalDetails = () => {
       )
       return
     }
-    // Calculate the athlete's age as of December 31st of the current year.
-    const age = calculateAgeAtEndOfYear(dob)
-    const athleteCategory = getAthleteCategory(age)
 
     try {
-      // Update the user document with additional details (including the profile picture URL).
+      // Update the user document with additional details.
       const userRef = doc(firestore, 'users', auth.currentUser.uid)
       await setDoc(
         userRef,
@@ -100,7 +71,6 @@ const AdditionalDetails = () => {
           sex,
           profession,
           dob,
-          athleteCategory,
           photoURL: profilePic,
           isMember: true,
         },
