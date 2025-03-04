@@ -354,7 +354,6 @@ const Login = () => {
               type="text"
               placeholder="Membership Code"
               value={membershipInput}
-              style={{ textTransform: 'lowercase' }}
               onChange={e => setMembershipInput(e.target.value)}
               className="w-full p-3 border border-gray-300 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
