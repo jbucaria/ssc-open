@@ -266,7 +266,7 @@ const Login = () => {
             className="text-sm text-center"
           >
             <Link to="/signup" className="text-blue-500 hover:underline">
-              Don't have an account? Sign up
+              Don&apos;t have an account? Sign up
             </Link>
           </ThemedText>
           <ThemedText

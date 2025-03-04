@@ -1,7 +1,7 @@
 // src/pages/AdditionalDetails.jsx
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { doc, setDoc } from 'firebase/firestore'
+import { doc, setDoc, getDoc } from 'firebase/firestore'
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
 import { auth, firestore, storage } from '@/firebaseConfig'
 import {
@@ -10,18 +10,14 @@ import {
   ThemedButton,
 } from '@/components/ThemedComponents'
 
-// Helper functions to calculate age and determine athlete category
-function calculateAge(dob) {
+// Calculate the athlete's age as of December 31st of the current year.
+function calculateAgeAtEndOfYear(dob) {
   const birthDate = new Date(dob)
-  const today = new Date()
-  let age = today.getFullYear() - birthDate.getFullYear()
-  const m = today.getMonth() - birthDate.getMonth()
-  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-    age--
-  }
-  return age
+  const currentYear = new Date().getFullYear()
+  return currentYear - birthDate.getFullYear()
 }
 
+// Determine athlete category based on age as of December 31st.
 function getAthleteCategory(age) {
   if (age >= 35) {
     if (age <= 39) return 'Masters 35-39'
@@ -91,7 +87,8 @@ const AdditionalDetails = () => {
       )
       return
     }
-    const age = calculateAge(dob)
+    // Calculate the athlete's age as of December 31st of the current year.
+    const age = calculateAgeAtEndOfYear(dob)
     const athleteCategory = getAthleteCategory(age)
 
     try {
@@ -109,7 +106,7 @@ const AdditionalDetails = () => {
         },
         { merge: true }
       )
-      // Navigate to home (or trigger a user data refresh via your global state)
+      // Navigate to home after user details are updated.
       navigate('/home')
     } catch (err) {
       console.error('Error saving additional details:', err)
