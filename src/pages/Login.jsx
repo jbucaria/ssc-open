@@ -55,20 +55,25 @@ const Login = () => {
             user.displayName || user.email?.split('@')[0] || 'Anonymous',
           email: user.email || '',
           photoURL: user.photoURL || null,
+          profileCompleted: false,
           isMember: false,
           onLeaderBoard: false,
           createdAt: new Date(),
           termsAccepted: termsAccepted, // Store terms acceptance
         })
-        return { isMember: false }
+        return { isMember: false, profileCompleted: false }
       } else {
         const data = userSnap.data()
-        return { isMember: data.isMember !== undefined ? data.isMember : false }
+        return {
+          isMember: data.isMember !== undefined ? data.isMember : false,
+          profileCompleted:
+            data.profileCompleted !== undefined ? data.profileCompleted : false,
+        }
       }
     } catch (err) {
       console.error('Error fetching user data:', err)
       setError('Failed to fetch user data. Please try again.')
-      return { isMember: false } // Default to non-member on error
+      return { isMember: false, profileCompleted: false }
     }
   }
 
@@ -77,15 +82,24 @@ const Login = () => {
       if (pendingUser) {
         const userRef = doc(firestore, 'users', pendingUser.uid)
         await setDoc(userRef, { isMember: true }, { merge: true })
+        // Fetch the updated user document
+        const updatedSnap = await getDoc(userRef)
+        const updatedData = updatedSnap.data()
         setShowMembershipModal(false)
         setPendingUser(null) // Clear pending user after verification
-        navigate(pendingUser.isMember ? '/home' : '/additionaldetails')
+
+        // If the profile is completed, navigate to home; otherwise, go to additional details.
+        if (updatedData.profileCompleted) {
+          navigate('/home')
+        } else {
+          navigate('/additionaldetails')
+        }
       } else {
         setError('No pending user found. Please log in again.')
         setShowMembershipModal(false)
       }
     } else {
-      // Blur the currently focused element to dismiss the keyboard on mobile
+      // Blur to dismiss the keyboard on mobile
       if (document.activeElement) {
         document.activeElement.blur()
       }
@@ -94,7 +108,7 @@ const Login = () => {
       )
       await signOut(auth)
       setShowMembershipModal(false)
-      setPendingUser(null) // Clear pending user on invalid code
+      setPendingUser(null)
       setMembershipInput('') // Clear the input field
     }
   }
@@ -122,7 +136,12 @@ const Login = () => {
       const user = result.user
       const userData = await handleUserFirestore(user)
       if (userData.isMember) {
-        navigate('/home')
+        // Check if profile is complete
+        if (userData.profileCompleted) {
+          navigate('/home')
+        } else {
+          navigate('/additionaldetails')
+        }
       } else {
         setPendingUser(user) // Store the user for membership verification
         setShowMembershipModal(true) // Show membership modal for non-members
@@ -149,7 +168,12 @@ const Login = () => {
       const user = result.user
       const userData = await handleUserFirestore(user)
       if (userData.isMember) {
-        navigate('/home')
+        // Check if profile is complete before navigating
+        if (userData.profileCompleted) {
+          navigate('/home')
+        } else {
+          navigate('/additionaldetails')
+        }
       } else {
         setPendingUser(user) // Store the user for membership verification
         setShowMembershipModal(true) // Show membership modal for non-members
@@ -354,6 +378,9 @@ const Login = () => {
               type="text"
               placeholder="Membership Code"
               value={membershipInput}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck="false"
               onChange={e => setMembershipInput(e.target.value)}
               className="w-full p-3 border border-gray-300 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />

@@ -95,6 +95,7 @@ const Leaderboard = () => {
   const [error, setError] = useState(null)
 
   // If you need to display the current user's doc info, track it here:
+  // eslint-disable-next-line no-unused-vars
   const [myStandings, setMyStandings] = useState({
     userId: currentUser?.uid || null,
     displayName: 'Anonymous',
@@ -661,7 +662,9 @@ const Leaderboard = () => {
                         <td className="border p-2 text-center">
                           {score.completed
                             ? score.finishTime || '-'
-                            : `${score.reps} reps` || '-'}
+                            : score.reps
+                            ? `${score.reps} reps`
+                            : '-'}
                         </td>
                       </>
                     ) : workoutFilter === '25.1' ? (
@@ -679,7 +682,9 @@ const Leaderboard = () => {
                         <td className="border p-2 text-center">
                           {score.finishTime
                             ? score.finishTime
-                            : `${score.reps} reps` || '-'}
+                            : score.reps
+                            ? `${score.reps} reps`
+                            : '-'}
                         </td>
                       </>
                     )}

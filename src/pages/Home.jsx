@@ -6,6 +6,7 @@ import {
   where,
   onSnapshot,
   getDocs,
+  doc,
 } from 'firebase/firestore'
 import { firestore, auth } from '@/firebaseConfig'
 import { ThemedView } from '@/components/ThemedComponents'
@@ -21,6 +22,27 @@ const Home = () => {
   const navigate = useNavigate()
   const location = useLocation() // Add useLocation to detect navigation
   const workoutName = '25.1'
+
+  useEffect(() => {
+    if (!auth.currentUser) return
+
+    const userRef = doc(firestore, 'users', auth.currentUser.uid)
+    const unsubscribeUser = onSnapshot(
+      userRef,
+      docSnapshot => {
+        if (docSnapshot.exists()) {
+          const data = docSnapshot.data()
+          // If profileCompleted is false, redirect to additional details
+          if (!data.profileCompleted) {
+            navigate('/additionaldetails')
+          }
+        }
+      },
+      err => console.error('Error listening to user data:', err)
+    )
+
+    return () => unsubscribeUser()
+  }, [navigate])
 
   // Real-time listener for score changes to update scoreSubmitted
   useEffect(() => {

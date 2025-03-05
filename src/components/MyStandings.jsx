@@ -357,7 +357,8 @@ const MyStandings = () => {
     )
 
     return unsubscribe
-  }, [currentUser, placementType, myStandings]) // re-run if user toggles or if myStandings changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser, placementType]) // re-run if user toggles or if myStandings changes
 
   if (!currentUser) {
     return (

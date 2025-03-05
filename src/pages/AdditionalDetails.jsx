@@ -73,6 +73,7 @@ const AdditionalDetails = () => {
           dob,
           photoURL: profilePic,
           isMember: true,
+          profileCompleted: true,
         },
         { merge: true }
       )
@@ -159,22 +160,30 @@ const AdditionalDetails = () => {
 
         {/* Profile Picture Upload */}
         <div className="flex flex-col items-center space-y-2">
-          {profilePic ? (
-            <img
-              src={profilePic}
-              alt="Profile Preview"
-              className="w-32 h-32 rounded-full mb-2 object-cover border border-gray-300"
-            />
-          ) : (
-            <label
-              htmlFor="profilePicInput"
-              className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center border border-gray-300 cursor-pointer hover:bg-gray-300"
-            >
-              <ThemedText as="p" styleType="secondary" className="text-lg">
-                Choose Photo
-              </ThemedText>
-            </label>
-          )}
+          <label htmlFor="profilePicInput" className="cursor-pointer">
+            {profilePic ? (
+              <>
+                <img
+                  src={profilePic}
+                  alt="Profile Preview"
+                  className="w-32 h-32 rounded-full mb-2 object-cover border border-gray-300"
+                />
+                <ThemedText
+                  as="p"
+                  styleType="secondary"
+                  className="text-sm text-blue-500 hover:underline"
+                >
+                  Change Photo
+                </ThemedText>
+              </>
+            ) : (
+              <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center border border-gray-300">
+                <ThemedText as="p" styleType="secondary" className="text-lg">
+                  Choose Photo
+                </ThemedText>
+              </div>
+            )}
+          </label>
           <input
             id="profilePicInput"
             type="file"
