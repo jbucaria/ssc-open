@@ -19,7 +19,6 @@ import {
   getDocs,
 } from 'firebase/firestore'
 import { computeRoundsAndReps25_1 } from '@/utils/score25_1'
-
 import ErrorBoundary from '@/components/ErrorBoundary'
 
 // Helper: Format seconds into MM:SS with two-digit minute and second.
@@ -28,7 +27,6 @@ const formatTime = seconds => {
   if (isNaN(s) || s < 0) return ''
   const mins = Math.floor(s / 60)
   const secs = s % 60
-  // Ensure two digits for both minutes and seconds.
   const minsStr = mins.toString().padStart(2, '0')
   const secsStr = secs.toString().padStart(2, '0')
   return `${minsStr}:${secsStr}`
@@ -55,15 +53,13 @@ const ScoreEntryContent = () => {
 
   // formData holds our input values.
   // For 25.1: totalReps.
-  // For 25.2: didFinish (boolean), finishMinutes, finishSeconds, tiebreakMinutes, tiebreakSeconds, and nonCompleteReps.
+  // For 25.2: didFinish (boolean), finishMinutes, finishSeconds, and nonCompleteReps.
   const [formData, setFormData] = useState({
     scaling: 'RX',
-    totalReps: '', // For 25.1 (or if not completed 25.2)
-    didFinish: false, // Only for 25.2
+    totalReps: '', // For 25.1 or if partial 25.2 attempt
+    didFinish: false,
     finishMinutes: '',
     finishSeconds: '',
-    tiebreakMinutes: '',
-    tiebreakSeconds: '',
     nonCompleteReps: '',
   })
 
@@ -87,26 +83,16 @@ const ScoreEntryContent = () => {
         setFormData(prev => ({
           ...prev,
           scaling: data.scaling || 'RX',
-          totalReps: data.totalReps ? data.totalReps.toString() : '',
+          totalReps: data.totalReps ? String(data.totalReps) : '',
           // For 25.2: if finishTime exists, consider it completed.
           didFinish: data.finishTime ? true : false,
           finishMinutes: data.finishTime
-            ? Math.floor(data.finishTime / 60)
-                .toString()
-                .padStart(2, '0')
+            ? String(Math.floor(data.finishTime / 60)).padStart(2, '0')
             : '',
           finishSeconds: data.finishTime
-            ? (data.finishTime % 60).toString().padStart(2, '0')
+            ? String(data.finishTime % 60).padStart(2, '0')
             : '',
-          tiebreakMinutes: data.tiebreakTime
-            ? Math.floor(data.tiebreakTime / 60)
-                .toString()
-                .padStart(2, '0')
-            : '',
-          tiebreakSeconds: data.tiebreakTime
-            ? (data.tiebreakTime % 60).toString().padStart(2, '0')
-            : '',
-          nonCompleteReps: data.totalReps ? data.totalReps.toString() : '',
+          nonCompleteReps: data.totalReps ? String(data.totalReps) : '',
         }))
         setIsEditing(false)
       } else {
@@ -120,6 +106,7 @@ const ScoreEntryContent = () => {
     e.preventDefault()
     setError('')
     let scoreData = {}
+
     if (workoutName === '25.1') {
       const totalReps = Number(formData.totalReps) || 0
       if (isNaN(totalReps)) {
@@ -139,39 +126,31 @@ const ScoreEntryContent = () => {
       }
     } else if (workoutName === '25.2') {
       if (formData.didFinish) {
-        // If workout completed, require finish time and tiebreak time.
+        // If finished, require finish time only.
         if (!formData.finishMinutes || !formData.finishSeconds) {
           setError('Please enter your finish time in minutes and seconds.')
-          return
-        }
-        if (!formData.tiebreakMinutes || !formData.tiebreakSeconds) {
-          setError('Please enter your tiebreak time in minutes and seconds.')
           return
         }
         const finishTime = combineTime(
           formData.finishMinutes,
           formData.finishSeconds
         )
-        const tiebreakTime = combineTime(
-          formData.tiebreakMinutes,
-          formData.tiebreakSeconds
-        )
         scoreData = {
           workoutName,
           finishTime,
-          tiebreakTime,
           scaling: formData.scaling || 'RX',
           completed: true,
           createdAt: serverTimestamp(),
           userId: auth.currentUser?.uid,
         }
       } else {
-        // If not completed, require total reps and tiebreak time.
+        // If not finished, require total reps and tiebreak time.
         const totalReps = Number(formData.nonCompleteReps) || 0
         if (isNaN(totalReps)) {
           setError('Please enter a valid number for total reps.')
           return
         }
+        // In partial attempts, tiebreak is required.
         if (!formData.tiebreakMinutes || !formData.tiebreakSeconds) {
           setError('Please enter your tiebreak time in minutes and seconds.')
           return
@@ -261,10 +240,6 @@ const ScoreEntryContent = () => {
                 <strong>Finish Time:</strong>{' '}
                 {formatTime(submittedScore.finishTime)}
               </ThemedText>
-              <ThemedText as="p" styleType="default">
-                <strong>Tiebreak Time:</strong>{' '}
-                {formatTime(submittedScore.tiebreakTime)}
-              </ThemedText>
             </>
           )}
           {workoutName === '25.2' && !submittedScore.completed && (
@@ -322,6 +297,7 @@ const ScoreEntryContent = () => {
             />
           </div>
         )}
+
         {workoutName === '25.2' && (
           <>
             <div>
@@ -361,7 +337,9 @@ const ScoreEntryContent = () => {
                 </label>
               </div>
             </div>
+
             {formData.didFinish ? (
+              // If finished, show only finish time input.
               <>
                 <div>
                   <ThemedText
@@ -369,7 +347,7 @@ const ScoreEntryContent = () => {
                     styleType="secondary"
                     className="block mb-1"
                   >
-                    Enter Finish Time:
+                    Enter Finish Time (MM:SS):
                   </ThemedText>
                   <div className="flex space-x-2">
                     <input
@@ -415,60 +393,9 @@ const ScoreEntryContent = () => {
                     </ThemedText>
                   )}
                 </div>
-                <div>
-                  <ThemedText
-                    as="label"
-                    styleType="secondary"
-                    className="block mb-1"
-                  >
-                    Enter Tiebreak Time:
-                  </ThemedText>
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      placeholder="MM"
-                      maxLength={2}
-                      value={formData.tiebreakMinutes}
-                      onChange={e =>
-                        setFormData({
-                          ...formData,
-                          tiebreakMinutes: e.target.value,
-                        })
-                      }
-                      className="p-2 border border-gray-300 rounded w-1/3 text-center"
-                    />
-                    <input
-                      type="text"
-                      placeholder="SS"
-                      maxLength={2}
-                      value={formData.tiebreakSeconds}
-                      onChange={e =>
-                        setFormData({
-                          ...formData,
-                          tiebreakSeconds: e.target.value,
-                        })
-                      }
-                      className="p-2 border border-gray-300 rounded w-1/3 text-center"
-                    />
-                  </div>
-                  {formData.tiebreakMinutes && formData.tiebreakSeconds && (
-                    <ThemedText
-                      as="p"
-                      styleType="default"
-                      className="text-sm mt-1"
-                    >
-                      Formatted:{' '}
-                      {formatTime(
-                        combineTime(
-                          formData.tiebreakMinutes,
-                          formData.tiebreakSeconds
-                        )
-                      )}
-                    </ThemedText>
-                  )}
-                </div>
               </>
             ) : (
+              // If not finished, require total reps and tiebreak time.
               <>
                 <div>
                   <ThemedText
@@ -497,7 +424,7 @@ const ScoreEntryContent = () => {
                     styleType="secondary"
                     className="block mb-1"
                   >
-                    Enter Tiebreak Time:
+                    Enter Tiebreak Time (MM:SS):
                   </ThemedText>
                   <div className="flex space-x-2">
                     <input
@@ -547,6 +474,7 @@ const ScoreEntryContent = () => {
             )}
           </>
         )}
+
         <div>
           <ThemedText as="label" styleType="secondary" className="block mb-1">
             Select Scaling:
@@ -563,16 +491,22 @@ const ScoreEntryContent = () => {
             <option value="Foundations">Foundations</option>
           </select>
         </div>
+
         {error && (
           <ThemedText as="p" styleType="danger" className="text-sm">
             {error}
           </ThemedText>
         )}
         {message && (
-          <ThemedText as="p" styleType="danger" className="text-sm">
+          <ThemedText
+            as="p"
+            styleType="default"
+            className="text-sm text-green-600"
+          >
             {message}
           </ThemedText>
         )}
+
         <ThemedButton styleType="primary" type="submit" className="w-full">
           {submittedScore ? 'Update Score' : 'Submit Score'}
         </ThemedButton>

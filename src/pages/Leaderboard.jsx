@@ -14,7 +14,7 @@ import {
   updateDoc,
   doc,
   getDoc,
-  onSnapshot, // Add this import if you want to listen to user's doc changes
+  onSnapshot,
 } from 'firebase/firestore'
 import { sortScores25_1 } from '@/utils/sortScores'
 
@@ -35,9 +35,17 @@ const timeToMinutes = time => {
   return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10)
 }
 
+// Helper: format raw seconds to "MM:SS" (if you want it).
+const formatTime = seconds => {
+  if (!seconds || isNaN(seconds) || seconds < 0) return ''
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m}:${s < 10 ? '0' : ''}${s}`
+}
+
 // Helper: calculate age as of December 31st of the current year.
 function calculateAgeAtEndOfYear(dob) {
-  if (!dob) return 0 // or some fallback
+  if (!dob) return 0
   const birthDate = new Date(dob)
   const currentYear = new Date().getFullYear()
   return currentYear - birthDate.getFullYear()
@@ -62,10 +70,8 @@ function getAthleteCategory(age) {
   }
 }
 
-// Helper: compute rounds and extra reps for 25.1.
+// 25.1 Rounds + extra reps aggregator
 const computeRoundsAndReps25_1 = totalReps => {
-  // This formula is specific to your workout logic (example).
-  // You may adjust it as needed:
   const N = Math.floor((-5 + Math.sqrt(25 + 12 * totalReps)) / 6)
   const completedReps = N * (3 * N + 5)
   const extraReps = totalReps - completedReps
@@ -95,8 +101,7 @@ const Leaderboard = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // If you need to display the current user's doc info, track it here:
-  // eslint-disable-next-line no-unused-vars
+  // If you need to display the current user's doc info, track it here (optional).
   const [myStandings, setMyStandings] = useState({
     userId: currentUser?.uid || null,
     displayName: 'Anonymous',
@@ -163,22 +168,18 @@ const Leaderboard = () => {
         // 1) "Overall" Mode
         // ---------------------------
         if (workoutFilter === 'Overall') {
-          // Query only by workoutName and completed => do NOT filter by athleteCategory
+          // Remove 'where("completed","==",true)' so partial attempts also show up
           const q = query(
             scoresRef,
-            where('workoutName', 'in', availableWorkouts),
-            where('completed', '==', true)
-            // no ageGroup or athleteCategory here
+            where('workoutName', 'in', availableWorkouts)
           )
           const querySnapshot = await getDocs(q)
-
-          // Build array of all scores
           let allScores = querySnapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data(),
           }))
 
-          // Fetch user doc for each score, compute dynamic category, store in the score
+          // Compute dynamic category from user doc
           await Promise.all(
             allScores.map(async score => {
               const userDocRef = doc(firestore, 'users', score.userId)
@@ -186,10 +187,10 @@ const Leaderboard = () => {
               if (userSnap.exists()) {
                 const data = userSnap.data()
                 if (data.dob) {
-                  const dynamicAge = calculateAgeAtEndOfYear(data.dob)
-                  score.athleteCategory = getAthleteCategory(dynamicAge)
+                  score.athleteCategory = getAthleteCategory(
+                    calculateAgeAtEndOfYear(data.dob)
+                  )
                 } else {
-                  // fallback
                   score.athleteCategory = data.athleteCategory || 'Unknown'
                 }
                 score.photoURL = data.photoURL || null
@@ -199,7 +200,7 @@ const Leaderboard = () => {
             })
           )
 
-          // Now apply client-side filters for sex, ageGroup, scaling (AFTER computing dynamic category)
+          // Apply client-side filters
           if (sexFilter !== 'All') {
             allScores = allScores.filter(
               s => s.sex && s.sex.toLowerCase() === sexFilter.toLowerCase()
@@ -214,10 +215,8 @@ const Leaderboard = () => {
             allScores = allScores.filter(s => s.scaling === scalingFilter)
           }
 
-          // Now we do per-workout ranking across the *filtered* set:
+          // Now build aggregator: rank each workout individually, then sum
           const perWorkoutRankings = {}
-
-          // For each workout, sort the relevant scores and assign rank
           availableWorkouts.forEach(workout => {
             const workoutScores = allScores.filter(
               s => s.workoutName === workout
@@ -225,18 +224,34 @@ const Leaderboard = () => {
 
             let sorted = []
             if (workout === '25.2') {
+              // separate completed from not completed
               const completedScores = workoutScores.filter(s => s.completed)
-              const nonCompletedScores = workoutScores.filter(s => !s.completed)
-              completedScores.sort(
-                (a, b) =>
-                  timeToMinutes(a.finishTime) - timeToMinutes(b.finishTime)
-              )
-              nonCompletedScores.sort((a, b) => b.reps - a.reps)
-              sorted = [...completedScores, ...nonCompletedScores]
+              const nonCompleted = workoutScores.filter(s => !s.completed)
+              // sort completed by finishTime
+              completedScores.sort((a, b) => {
+                const timeA = timeToMinutes(a.finishTime)
+                const timeB = timeToMinutes(b.finishTime)
+                if (timeA !== timeB) return timeA - timeB
+                // tie break
+                const tbA = timeToMinutes(a.tiebreakTime || '99:99')
+                const tbB = timeToMinutes(b.tiebreakTime || '99:99')
+                return tbA - tbB
+              })
+              // sort partial by totalReps or reps
+              nonCompleted.sort((a, b) => {
+                const repsA = a.totalReps || a.reps || 0
+                const repsB = b.totalReps || b.reps || 0
+                if (repsB !== repsA) return repsB - repsA
+                // tie break
+                const tbA = timeToMinutes(a.tiebreakTime || '99:99')
+                const tbB = timeToMinutes(b.tiebreakTime || '99:99')
+                return tbA - tbB
+              })
+              sorted = [...completedScores, ...nonCompleted]
             } else if (workout === '25.1') {
               sorted = sortScores25_1(workoutScores)
             } else {
-              // 25.3 logic: prioritize RX over Scaled over Foundations, then fastest time
+              // 25.3 or others
               const scalingOrder = { RX: 1, Scaled: 2, Foundations: 3 }
               sorted = [...workoutScores].sort((a, b) => {
                 const orderA = scalingOrder[a.scaling] || 99
@@ -245,79 +260,98 @@ const Leaderboard = () => {
                 const finishA = timeToMinutes(a.finishTime)
                 const finishB = timeToMinutes(b.finishTime)
                 if (finishA !== finishB) return finishA - finishB
-                // Compare tie-break times
-                const tbA = timeToMinutes(a.tiebreakTime)
-                const tbB = timeToMinutes(b.tiebreakTime)
+                // tie break
+                const tbA = timeToMinutes(a.tiebreakTime || '99:99')
+                const tbB = timeToMinutes(b.tiebreakTime || '99:99')
                 return tbA - tbB
               })
             }
+            perWorkoutRankings[workout] = sorted.map((score, index) => {
+              let scoreDisplay = ''
 
-            // Build a ranking list for that workout
-            perWorkoutRankings[workout] = sorted.map((score, index) => ({
-              userId: score.userId,
-              placement: index + 1,
-              scoreDisplay:
-                workout === '25.2'
-                  ? score.completed
-                    ? score.finishTime
-                    : `${score.reps} reps`
-                  : score.finishTime || `${score.reps} reps`,
-              rankingPoints: index + 1,
-              scaling: score.scaling,
-            }))
+              if (workout === '25.2') {
+                if (score.completed && score.finishTime) {
+                  // Athlete finished: show finishTime as MM:SS
+                  scoreDisplay = formatTime(score.finishTime)
+                  // If there's a tie-break, append it
+                  if (score.tiebreakTime) {
+                    scoreDisplay += ` (TB: ${formatTime(score.tiebreakTime)})`
+                  }
+                } else {
+                  // Athlete didn't finish: show totalReps (or reps)
+                  const reps = score.totalReps || score.reps || 0
+                  scoreDisplay = `${reps} reps`
+                  // If there's a tie-break, append it
+                  if (score.tiebreakTime) {
+                    scoreDisplay += ` (TB: ${formatTime(score.tiebreakTime)})`
+                  }
+                }
+              } else if (workout === '25.1') {
+                const reps = Number(score.reps || 0)
+                if (!isNaN(reps) && reps >= 0) {
+                  const { rounds, extraReps } = computeRoundsAndReps25_1(reps)
+                  scoreDisplay = `${rounds} + ${extraReps} | ${reps} reps`
+                } else {
+                  scoreDisplay = '0 reps'
+                }
+              } else {
+                // e.g. 25.3 or anything else
+                scoreDisplay = score.finishTime
+                  ? formatTime(score.finishTime)
+                  : `${score.reps || 0} reps`
+              }
+
+              return {
+                userId: score.userId,
+                placement: index + 1,
+                rankingPoints: index + 1,
+                scoreDisplay,
+                scaling: score.scaling,
+              }
+            })
           })
 
-          // Aggregate total points per user
+          // Aggregate points
           const aggregated = {}
-          allScores.forEach(score => {
-            if (!aggregated[score.userId]) {
-              aggregated[score.userId] = {
-                userId: score.userId,
-                displayName: score.displayName || 'Anonymous',
-                athleteCategory: score.athleteCategory || 'Unknown',
-                photoURL: score.photoURL || null,
+          allScores.forEach(s => {
+            if (!aggregated[s.userId]) {
+              aggregated[s.userId] = {
+                userId: s.userId,
+                displayName: s.displayName || 'Anonymous',
+                athleteCategory: s.athleteCategory || 'Unknown',
+                photoURL: s.photoURL || null,
                 totalPoints: 0,
                 perWorkout: {},
               }
             }
           })
 
-          // Fill in placements for each workout
-          availableWorkouts.forEach(workout => {
-            const rankings = perWorkoutRankings[workout] || []
-            rankings.forEach(r => {
-              if (aggregated[r.userId]) {
-                aggregated[r.userId].perWorkout[workout] =
-                  workout === '25.1'
-                    ? `${getOrdinal(r.placement)} [${r.scaling}] (${
-                        r.scoreDisplay
-                      })`
-                    : `${getOrdinal(r.placement)} (${r.scoreDisplay})`
-                aggregated[r.userId].totalPoints += r.rankingPoints
-              }
+          // Fill aggregator from perWorkoutRankings
+          availableWorkouts.forEach(w => {
+            const ranks = perWorkoutRankings[w] || []
+            ranks.forEach(r => {
+              aggregated[r.userId].perWorkout[w] = r.scoreDisplay
+              aggregated[r.userId].totalPoints += r.rankingPoints
             })
           })
 
-          // Convert the aggregated object to an array
+          // Convert to array & sort
           let aggregatedArray = Object.values(aggregated)
-          // Sort by totalPoints ascending (fewer points is better)
           aggregatedArray.sort((a, b) => a.totalPoints - b.totalPoints)
 
           setScores(aggregatedArray)
           setLoading(false)
-
+        } else {
           // ---------------------------
           // 2) "Specific Workout" Mode
           // ---------------------------
-        } else {
-          // Build query with NO athleteCategory constraint
-          // But keep completed == true except for 25.2
+          // Example: if workoutFilter='25.2'
           const constraints = []
           constraints.push(where('workoutName', '==', workoutFilter))
+          // If you want partial attempts in specific workout mode, remove the next line
           if (workoutFilter !== '25.2') {
             constraints.push(where('completed', '==', true))
           }
-          // If you want sex & scaling partially dynamic, remove these from the query, too.
           if (sexFilter !== 'All') {
             constraints.push(where('sex', '==', sexFilter.toLowerCase()))
           }
@@ -332,53 +366,55 @@ const Leaderboard = () => {
             ...doc.data(),
           }))
 
-          // Compute dynamic category from user doc
+          // fetch user doc
           await Promise.all(
-            fetchedScores.map(async score => {
-              const userDocRef = doc(firestore, 'users', score.userId)
+            fetchedScores.map(async sc => {
+              const userDocRef = doc(firestore, 'users', sc.userId)
               const userSnap = await getDoc(userDocRef)
               if (userSnap.exists()) {
                 const data = userSnap.data()
                 if (data.dob) {
-                  const dynamicAge = calculateAgeAtEndOfYear(data.dob)
-                  score.athleteCategory = getAthleteCategory(dynamicAge)
+                  sc.athleteCategory = getAthleteCategory(
+                    calculateAgeAtEndOfYear(data.dob)
+                  )
                 } else {
-                  score.athleteCategory = data.athleteCategory || 'Unknown'
+                  sc.athleteCategory = data.athleteCategory || 'Unknown'
                 }
-                score.photoURL = data.photoURL || null
-                score.displayName =
-                  data.displayName || score.displayName || 'Anonymous'
+                sc.photoURL = data.photoURL || null
+                sc.displayName =
+                  data.displayName || sc.displayName || 'Anonymous'
               }
             })
           )
 
-          // Now apply client-side filter for age group
           if (ageGroupFilter !== 'Overall') {
             fetchedScores = fetchedScores.filter(
               s => s.athleteCategory === ageGroupFilter
             )
           }
 
-          // Sort logic for the chosen workout
+          // Sorting
           if (workoutFilter === '25.2') {
-            const completedScores = fetchedScores.filter(s => s.completed)
-            const nonCompletedScores = fetchedScores.filter(s => !s.completed)
-            completedScores.sort(
-              (a, b) =>
-                timeToMinutes(a.finishTime) - timeToMinutes(b.finishTime)
-            )
-            nonCompletedScores.sort((a, b) => b.reps - a.reps)
-            fetchedScores = [...completedScores, ...nonCompletedScores]
+            const completed = fetchedScores.filter(s => s.completed)
+            const notCompleted = fetchedScores.filter(s => !s.completed)
+            completed.sort((a, b) => {
+              const timeA = timeToMinutes(a.finishTime)
+              const timeB = timeToMinutes(b.finishTime)
+              if (timeA !== timeB) return timeA - timeB
+              const tbA = timeToMinutes(a.tiebreakTime || '99:99')
+              const tbB = timeToMinutes(b.tiebreakTime || '99:99')
+              return tbA - tbB
+            })
+            notCompleted.sort((a, b) => b.reps - a.reps)
+            fetchedScores = [...completed, ...notCompleted]
           } else if (workoutFilter === '25.1') {
-            // Sort by descending reps
             fetchedScores.sort((a, b) => b.reps - a.reps)
-            // Then store "rounds + extra reps" for display
-            fetchedScores = fetchedScores.map(score => {
-              const { rounds, extraReps } = computeRoundsAndReps25_1(score.reps)
-              return { ...score, rounds, extraReps }
+            fetchedScores = fetchedScores.map(sc => {
+              const { rounds, extraReps } = computeRoundsAndReps25_1(sc.reps)
+              return { ...sc, rounds, extraReps }
             })
           } else {
-            // e.g. 25.3 or others
+            // e.g. 25.3
             const scalingOrder = { RX: 1, Scaled: 2, Foundations: 3 }
             fetchedScores.sort((a, b) => {
               const orderA = scalingOrder[a.scaling] || 99
@@ -393,19 +429,18 @@ const Leaderboard = () => {
             })
           }
 
-          // Assign ranking points (1-based index)
-          fetchedScores = fetchedScores.map((score, index) => ({
-            ...score,
-            rankingPoints: index + 1,
+          // Assign ranking
+          fetchedScores = fetchedScores.map((sc, idx) => ({
+            ...sc,
+            rankingPoints: idx + 1,
           }))
 
-          // Update Firestore with rankingPoints if desired
-          fetchedScores.forEach(score => {
-            const scoreDocRef = doc(firestore, 'scores', score.id)
-            updateDoc(scoreDocRef, {
-              rankingPoints: score.rankingPoints,
-            }).catch(err =>
-              console.error(`Error updating points for score ${score.id}:`, err)
+          // If you want to update Firestore with rankingPoints, keep this
+          fetchedScores.forEach(sc => {
+            const scoreDocRef = doc(firestore, 'scores', sc.id)
+            updateDoc(scoreDocRef, { rankingPoints: sc.rankingPoints }).catch(
+              err =>
+                console.error(`Error updating points for score ${sc.id}:`, err)
             )
           })
 
@@ -490,7 +525,7 @@ const Leaderboard = () => {
           <select
             value={sexFilter}
             onChange={e => setSexFilter(e.target.value)}
-            className="p-2 border rounded w-full "
+            className="p-2 border rounded w-full"
           >
             <option value="All">All</option>
             <option value="male">Male</option>
@@ -536,8 +571,8 @@ const Leaderboard = () => {
         </div>
       </div>
 
-      {/* If "Overall" view */}
       {workoutFilter === 'Overall' ? (
+        // Overall view
         <div className="overflow-x-auto shadow-md bg-white rounded">
           <table className="min-w-full border-collapse">
             <thead className="bg-gray-200">
@@ -553,18 +588,18 @@ const Leaderboard = () => {
               </tr>
             </thead>
             <tbody>
-              {scores.map((score, index) => (
+              {scores.map((sc, idx) => (
                 <tr
-                  key={score.userId || score.id}
+                  key={sc.userId || sc.id}
                   className="bg-white hover:bg-gray-50"
                 >
-                  <td className="border p-2 text-center">{index + 1}</td>
+                  <td className="border p-2 text-center">{idx + 1}</td>
                   <td className="border p-2">
                     <div className="flex items-center space-x-2 min-w-[200px]">
-                      {score.photoURL ? (
+                      {sc.photoURL ? (
                         <img
-                          src={score.photoURL}
-                          alt={score.displayName}
+                          src={sc.photoURL}
+                          alt={sc.displayName}
                           className="w-10 h-10 rounded-full object-cover"
                         />
                       ) : (
@@ -574,22 +609,20 @@ const Leaderboard = () => {
                             styleType="primary"
                             className="text-sm font-bold"
                           >
-                            {score.displayName
-                              ? getInitials(score.displayName)
+                            {sc.displayName
+                              ? getInitials(sc.displayName)
                               : 'NA'}
                           </ThemedText>
                         </div>
                       )}
-                      <span>{score.displayName || 'Anonymous'}</span>
+                      <span>{sc.displayName || 'Anonymous'}</span>
                     </div>
                   </td>
-                  <td className="border p-2 text-center">
-                    {score.totalPoints}
-                  </td>
+                  <td className="border p-2 text-center">{sc.totalPoints}</td>
                   {availableWorkouts.map(w => (
                     <td key={w} className="border p-2 text-center">
-                      {score.perWorkout && score.perWorkout[w]
-                        ? score.perWorkout[w]
+                      {sc.perWorkout && sc.perWorkout[w]
+                        ? sc.perWorkout[w]
                         : '-'}
                     </td>
                   ))}
@@ -599,17 +632,16 @@ const Leaderboard = () => {
           </table>
         </div>
       ) : (
-        // If "Specific Workout" view
+        // Specific Workout view
         <div className="overflow-x-auto shadow-md bg-white rounded">
           <table className="min-w-full border-collapse">
             <thead className="bg-gray-200">
               <tr>
                 <th className="border p-2">Rank</th>
                 <th className="border p-2">Athlete</th>
-
                 {workoutFilter === '25.2' ? (
                   <>
-                    <th className="border p-2">Status</th>
+                    <th className="border p-2">Scaling</th>
                     <th className="border p-2">Time/Reps</th>
                   </>
                 ) : workoutFilter === '25.1' ? (
@@ -623,76 +655,64 @@ const Leaderboard = () => {
               </tr>
             </thead>
             <tbody>
-              {scores.map((score, index) => {
-                // for 25.1, we've appended "rounds" and "extraReps" in the fetch
-                return (
-                  <tr
-                    key={score.userId || score.id}
-                    className="bg-white hover:bg-gray-50"
-                  >
-                    <td className="border p-2 text-center">{index + 1}</td>
-                    <td className="border p-2">
-                      <div className="flex items-center space-x-2 min-w-[200px]">
-                        {score.photoURL ? (
-                          <img
-                            src={score.photoURL}
-                            alt={score.displayName}
-                            className="w-10 h-10 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
-                            <ThemedText
-                              as="p"
-                              styleType="primary"
-                              className="text-sm font-bold"
-                            >
-                              {score.displayName
-                                ? getInitials(score.displayName)
-                                : 'NA'}
-                            </ThemedText>
-                          </div>
-                        )}
-                        <span>{score.displayName || 'Anonymous'}</span>
-                      </div>
-                    </td>
+              {scores.map((sc, idx) => (
+                <tr
+                  key={sc.userId || sc.id}
+                  className="bg-white hover:bg-gray-50"
+                >
+                  <td className="border p-2 text-center">{idx + 1}</td>
+                  <td className="border p-2">
+                    <div className="flex items-center space-x-2 min-w-[200px]">
+                      {sc.photoURL ? (
+                        <img
+                          src={sc.photoURL}
+                          alt={sc.displayName}
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
+                          <ThemedText
+                            as="p"
+                            styleType="primary"
+                            className="text-sm font-bold"
+                          >
+                            {sc.displayName
+                              ? getInitials(sc.displayName)
+                              : 'NA'}
+                          </ThemedText>
+                        </div>
+                      )}
+                      <span>{sc.displayName || 'Anonymous'}</span>
+                    </div>
+                  </td>
 
-                    {workoutFilter === '25.2' ? (
-                      <>
-                        <td className="border p-2 text-center">
-                          {score.completed ? 'Finished' : 'Not Finished'}
-                        </td>
-                        <td className="border p-2 text-center">
-                          {score.completed
-                            ? score.finishTime || '-'
-                            : score.reps
-                            ? `${score.reps} reps`
-                            : '-'}
-                        </td>
-                      </>
-                    ) : workoutFilter === '25.1' ? (
-                      <td className="border p-2 text-center min-w-[250px]">
-                        {score.rounds !== undefined &&
-                        score.extraReps !== undefined
-                          ? `[${score.scaling}] ${score.rounds} rounds + ${score.extraReps} reps (${score.reps})`
-                          : score.reps || '-'}
+                  {workoutFilter === '25.2' ? (
+                    <>
+                      <td className="border p-2 text-center">{sc.scaling}</td>
+                      <td className="border p-2 text-center">
+                        {sc.completed && sc.finishTime
+                          ? sc.finishTime
+                          : sc.totalReps || sc.reps
+                          ? `${sc.totalReps || sc.reps} reps`
+                          : '-'}
                       </td>
-                    ) : (
-                      <>
-                        <td className="border p-2 text-center">
-                          {score.scaling}
-                        </td>
-                        <td className="border p-2 text-center">
-                          {score.finishTime
-                            ? score.finishTime
-                            : score.reps
-                            ? `${score.reps} reps`
-                            : '-'}
-                        </td>
-                      </>
-                    )}
-                  </tr>
-                )
-              })}
+                    </>
+                  ) : workoutFilter === '25.1' ? (
+                    <td className="border p-2 text-center min-w-[250px]">
+                      {sc.rounds !== undefined && sc.extraReps !== undefined
+                        ? `[${sc.scaling}] ${sc.rounds} rounds + ${sc.extraReps} reps (${sc.reps})`
+                        : sc.reps || '-'}
+                    </td>
+                  ) : (
+                    <>
+                      <td className="border p-2 text-center">{sc.scaling}</td>
+                      <td className="border p-2 text-center">
+                        {sc.finishTime || (sc.reps ? `${sc.reps} reps` : '-')}
+                      </td>
+                    </>
+                  )}
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
