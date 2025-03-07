@@ -16,6 +16,7 @@ import {
   doc,
   getDoc,
 } from 'firebase/firestore'
+import { sortScores25_1 } from '@/utils/sortScores'
 
 // Calculate the athlete's age as of December 31st of the current year.
 function calculateAgeAtEndOfYear(dob) {
@@ -55,7 +56,7 @@ const computeRoundsAndReps25_1 = totalReps => {
   return { rounds: N, extraReps }
 }
 
-// Helper function to parse finish time (hh:mm) to minutes
+// Helper function to parse finish time (hh:mm) to minutes (used in sorting).
 const parseFinishTime = time => {
   if (!time || typeof time !== 'string') return Infinity
   const parts = time.split(':')
@@ -63,6 +64,17 @@ const parseFinishTime = time => {
   const hours = parseInt(parts[0], 10) || 0
   const minutes = parseInt(parts[1], 10) || 0
   return hours * 60 + minutes
+}
+
+// Helper function to format time (in seconds) to MM:SS string.
+const formatTime = seconds => {
+  const s = Number(seconds)
+  if (isNaN(s) || s < 0) return ''
+  const mins = Math.floor(s / 60)
+  const secs = s % 60
+  const minsStr = mins.toString().padStart(2, '0')
+  const secsStr = secs.toString().padStart(2, '0')
+  return `${minsStr}:${secsStr}`
 }
 
 // Helper function to convert a number into its ordinal representation.
@@ -94,7 +106,6 @@ const MyStandings = () => {
   const [placementType, setPlacementType] = useState('Overall') // "Overall" | "Age Group"
 
   // One-time: fetch the current user's doc for displayName, dob, photoURL, etc.
-  // We'll store minimal user info in `myStandings`; full aggregator logic runs below.
   useEffect(() => {
     if (!currentUser) {
       setLoading(false)
@@ -107,7 +118,6 @@ const MyStandings = () => {
         const userSnap = await getDoc(userDocRef)
         if (userSnap.exists()) {
           const data = userSnap.data()
-          // Compute dynamic category from dob, or fallback:
           let dynamicCategory = 'Unknown'
           if (data.dob) {
             const age = calculateAgeAtEndOfYear(data.dob)
@@ -120,7 +130,6 @@ const MyStandings = () => {
             photoURL: data.photoURL || null,
             onLeaderBoard: data.onLeaderBoard || false,
             athleteCategory: dynamicCategory,
-            // The below fields are derived from aggregator:
             totalPoints: 0,
             perWorkout: {},
             overallPlacement: 0,
@@ -151,18 +160,13 @@ const MyStandings = () => {
   }, [currentUser])
 
   /**
-   * Real-time snapshot of all completed scores. We do an asynchronous
-   * "post-processing" to fetch each user doc, compute category, etc.
+   * Real-time snapshot of all completed scores.
    */
   useEffect(() => {
     if (!currentUser) return
 
     const scoresRef = collection(firestore, 'scores')
-    const q = query(
-      scoresRef,
-      where('workoutName', 'in', availableWorkouts),
-      where('completed', '==', true)
-    )
+    const q = query(scoresRef, where('workoutName', 'in', availableWorkouts))
 
     const unsubscribe = onSnapshot(
       q,
@@ -198,7 +202,6 @@ const MyStandings = () => {
                   athleteCategory: dynamicCategory,
                 }
               } else {
-                // fallback user data
                 userDocsMap[userId] = {
                   displayName: 'Anonymous',
                   photoURL: null,
@@ -209,39 +212,39 @@ const MyStandings = () => {
             })
           )
 
-          // 3) Build an aggregator to sum up placements for each user
+          // 3) Build an aggregator to sum up placements for each user.
           const aggregator = {}
+          const perWorkoutRankings = {}
           availableWorkouts.forEach(workout => {
-            // Filter out only the scores for this workout
             const workoutScores = allScores.filter(
               s => s.workoutName === workout
             )
-
-            // Sort them according to your logic
             let sortedScores = []
             if (workout === '25.1') {
-              // Sort by scaling first (RX > Scaled > Foundations), then reps desc
-              const scalingOrder = { RX: 1, Scaled: 2, Foundations: 3 }
-              sortedScores = [...workoutScores].sort((a, b) => {
-                const orderA = scalingOrder[a.scaling] || 99
-                const orderB = scalingOrder[b.scaling] || 99
-                if (orderA !== orderB) return orderA - orderB
-                return (b.reps || 0) - (a.reps || 0)
-              })
+              sortedScores = sortScores25_1(workoutScores)
             } else if (workout === '25.2') {
-              // Sort completed by fastest time, then non-completed by reps desc
               const completed = workoutScores.filter(s => s.completed)
               const notCompleted = workoutScores.filter(s => !s.completed)
-
               completed.sort((a, b) => {
                 const timeA = parseFinishTime(a.finishTime)
                 const timeB = parseFinishTime(b.finishTime)
-                return timeA - timeB
+                if (timeA !== timeB) return timeA - timeB
+                return (
+                  parseFinishTime(a.tiebreakTime || '99:99') -
+                  parseFinishTime(b.tiebreakTime || '99:99')
+                )
               })
-              notCompleted.sort((a, b) => (b.reps || 0) - (a.reps || 0))
+              notCompleted.sort((a, b) => {
+                const repsDiff =
+                  (b.totalReps || b.reps || 0) - (a.totalReps || a.reps || 0)
+                if (repsDiff !== 0) return repsDiff
+                return (
+                  parseFinishTime(a.tiebreakTime || '99:99') -
+                  parseFinishTime(b.tiebreakTime || '99:99')
+                )
+              })
               sortedScores = [...completed, ...notCompleted]
             } else {
-              // e.g. 25.3 logic: sort by scaling (RX>Scaled>Foundations), then by finishTime
               const scalingOrder = { RX: 1, Scaled: 2, Foundations: 3 }
               sortedScores = [...workoutScores].sort((a, b) => {
                 const orderA = scalingOrder[a.scaling] || 99
@@ -249,27 +252,21 @@ const MyStandings = () => {
                 if (orderA !== orderB) return orderA - orderB
                 const timeA = parseFinishTime(a.finishTime)
                 const timeB = parseFinishTime(b.finishTime)
-                return timeA - timeB
+                if (timeA !== timeB) return timeA - timeB
+                const tbA = parseFinishTime(a.tiebreakTime)
+                const tbB = parseFinishTime(b.tiebreakTime)
+                return tbA - tbB
               })
             }
 
-            // Assign placements (1-based) for this workout
-            sortedScores.forEach((score, idx) => {
-              const place = idx + 1
-              if (!aggregator[score.userId]) {
-                aggregator[score.userId] = {
-                  userId: score.userId,
-                  totalPoints: 0,
-                  perWorkout: {},
-                  athleteCategory:
-                    userDocsMap[score.userId]?.athleteCategory || 'Unknown',
-                }
-              }
-              aggregator[score.userId].totalPoints += place
-
-              // Create a display for the user
-              let scoreDisplay = score.finishTime || `${score.reps || 0} reps`
-              if (workout === '25.1') {
+            perWorkoutRankings[workout] = sortedScores.map((score, index) => {
+              let scoreDisplay = ''
+              if (workout === '25.2') {
+                scoreDisplay =
+                  score.completed && score.finishTime
+                    ? formatTime(score.finishTime)
+                    : `${score.totalReps || score.reps || 0} reps`
+              } else if (workout === '25.1') {
                 const reps = Number(score.reps || 0)
                 if (!isNaN(reps) && reps >= 0) {
                   const { rounds, extraReps } = computeRoundsAndReps25_1(reps)
@@ -277,47 +274,62 @@ const MyStandings = () => {
                 } else {
                   scoreDisplay = '0 reps'
                 }
+              } else {
+                scoreDisplay = score.finishTime
+                  ? formatTime(score.finishTime)
+                  : `${score.reps || 0} reps`
               }
-              aggregator[score.userId].perWorkout[workout] = `${getOrdinal(
-                place
-              )} (${scoreDisplay})`
+              return {
+                userId: score.userId,
+                placement: index + 1,
+                scoreDisplay,
+                rankingPoints: index + 1,
+                scaling: score.scaling,
+              }
             })
           })
 
-          // 4) Convert aggregator to an array for sorting/filtering
-          let aggregatorArr = Object.keys(aggregator).map(userId => {
-            return {
-              ...aggregator[userId],
-              userId,
-            }
+          // 4) Convert aggregator to an array for sorting/filtering.
+          Object.keys(perWorkoutRankings).forEach(workout => {
+            perWorkoutRankings[workout].forEach(ranking => {
+              if (!aggregator[ranking.userId]) {
+                aggregator[ranking.userId] = {
+                  userId: ranking.userId,
+                  totalPoints: 0,
+                  perWorkout: {},
+                  athleteCategory:
+                    userDocsMap[ranking.userId]?.athleteCategory || 'Unknown',
+                }
+              }
+              aggregator[ranking.userId].totalPoints += ranking.rankingPoints
+              aggregator[ranking.userId].perWorkout[workout] = `${getOrdinal(
+                ranking.placement
+              )} (${ranking.scoreDisplay})`
+            })
           })
 
-          // Sort by totalPoints ascending (fewer = better)
+          let aggregatorArr = Object.values(aggregator)
           aggregatorArr.sort((a, b) => a.totalPoints - b.totalPoints)
 
-          // 5) If "Age Group" toggle is selected, we keep only those who share the same category
+          // 5) If "Age Group" toggle is selected, filter by athleteCategory.
           let finalArr = aggregatorArr
           const myCat = myStandings?.athleteCategory || 'Unknown'
-
           if (placementType === 'Age Group') {
             finalArr = aggregatorArr.filter(u => u.athleteCategory === myCat)
           }
-
-          // Re-sort after filtering (since the subset might be smaller)
           finalArr.sort((a, b) => a.totalPoints - b.totalPoints)
           const totalParticipants = finalArr.length
 
-          // 6) Find the current user in finalArr
+          // 6) Find the current user in finalArr.
           const currentIndex = finalArr.findIndex(
             u => u.userId === currentUser.uid
           )
           const myPlacement =
             currentIndex >= 0 ? currentIndex + 1 : totalParticipants
 
-          // 7) Update myStandings with real-time data
+          // 7) Update myStandings with real-time data.
           setMyStandings(prev => {
             if (!prev) {
-              // If no prior data for user doc, do a minimal fallback
               return {
                 userId: currentUser.uid,
                 displayName: 'Anonymous',
@@ -332,7 +344,6 @@ const MyStandings = () => {
                 totalParticipants,
               }
             } else {
-              // Merge with existing user info (like photoURL, displayName)
               return {
                 ...prev,
                 athleteCategory: myCat,
@@ -357,8 +368,7 @@ const MyStandings = () => {
     )
 
     return unsubscribe
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser, placementType]) // re-run if user toggles or if myStandings changes
+  }, [currentUser, myStandings?.athleteCategory, placementType])
 
   if (!currentUser) {
     return (
@@ -367,7 +377,6 @@ const MyStandings = () => {
       </ThemedText>
     )
   }
-
   if (loading) {
     return (
       <ThemedText as="p" styleType="secondary">
@@ -375,7 +384,6 @@ const MyStandings = () => {
       </ThemedText>
     )
   }
-
   if (error) {
     return (
       <ThemedText as="p" styleType="danger">
@@ -383,7 +391,6 @@ const MyStandings = () => {
       </ThemedText>
     )
   }
-
   if (!myStandings) {
     return (
       <ThemedText as="p" styleType="secondary">
@@ -434,7 +441,6 @@ const MyStandings = () => {
             styleType="primary"
             className="text-2xl font-bold"
           >
-            {/* E.g. "5th of 10" */}
             {`${getOrdinal(myStandings.overallPlacement)} of ${
               myStandings.totalParticipants
             }`}

@@ -16,6 +16,7 @@ import {
   getDoc,
   onSnapshot, // Add this import if you want to listen to user's doc changes
 } from 'firebase/firestore'
+import { sortScores25_1 } from '@/utils/sortScores'
 
 // Helper: convert a number into its ordinal representation.
 const getOrdinal = n => {
@@ -233,10 +234,7 @@ const Leaderboard = () => {
               nonCompletedScores.sort((a, b) => b.reps - a.reps)
               sorted = [...completedScores, ...nonCompletedScores]
             } else if (workout === '25.1') {
-              // Sort descending by reps
-              sorted = [...workoutScores].sort(
-                (a, b) => Number(b.reps || 0) - Number(a.reps || 0)
-              )
+              sorted = sortScores25_1(workoutScores)
             } else {
               // 25.3 logic: prioritize RX over Scaled over Foundations, then fastest time
               const scalingOrder = { RX: 1, Scaled: 2, Foundations: 3 }
@@ -265,6 +263,7 @@ const Leaderboard = () => {
                     : `${score.reps} reps`
                   : score.finishTime || `${score.reps} reps`,
               rankingPoints: index + 1,
+              scaling: score.scaling,
             }))
           })
 
@@ -288,9 +287,12 @@ const Leaderboard = () => {
             const rankings = perWorkoutRankings[workout] || []
             rankings.forEach(r => {
               if (aggregated[r.userId]) {
-                aggregated[r.userId].perWorkout[workout] = `${getOrdinal(
-                  r.placement
-                )} (${r.scoreDisplay})`
+                aggregated[r.userId].perWorkout[workout] =
+                  workout === '25.1'
+                    ? `${getOrdinal(r.placement)} [${r.scaling}] (${
+                        r.scoreDisplay
+                      })`
+                    : `${getOrdinal(r.placement)} (${r.scoreDisplay})`
                 aggregated[r.userId].totalPoints += r.rankingPoints
               }
             })
@@ -671,7 +673,7 @@ const Leaderboard = () => {
                       <td className="border p-2 text-center min-w-[250px]">
                         {score.rounds !== undefined &&
                         score.extraReps !== undefined
-                          ? `${score.rounds} rounds + ${score.extraReps} reps (${score.reps})`
+                          ? `[${score.scaling}] ${score.rounds} rounds + ${score.extraReps} reps (${score.reps})`
                           : score.reps || '-'}
                       </td>
                     ) : (

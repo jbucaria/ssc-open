@@ -8,7 +8,7 @@ const Footer = () => {
       className="w-full p-4 bg-gray-800 text-center border-t border-gray-700"
     >
       <ThemedText as="p" styleType="secondary" className="text-sm text-white">
-        © 2025 Good Shepherd Studios | v 1.2.0
+        © 2025 Good Shepherd Studios | v 1.5.1
       </ThemedText>
     </ThemedView>
   )

@@ -11,7 +11,7 @@ import {
 import { firestore, auth } from '@/firebaseConfig'
 import { ThemedView } from '@/components/ThemedComponents'
 import AppHeader from '@/components/AppHeader'
-import WorkoutCard from '@/components/WorkoutCard'
+import WorkoutCarousel from '@/components/WorkoutCarousel'
 import MyStandings from '@/components/MyStandings'
 import Footer from '@/components/Footer'
 
@@ -103,8 +103,8 @@ const Home = () => {
           {/* Use key to force re-mount */}
         </section>
         {/* Benchmark Workout Card Section */}
-        <div className="">
-          <WorkoutCard />
+        <div className="mb-6">
+          <WorkoutCarousel />
         </div>
       </div>
       <Footer />

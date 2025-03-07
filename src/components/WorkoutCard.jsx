@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 // src/components/WorkoutCard.jsx
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -9,13 +10,11 @@ import {
 import { firestore, auth } from '@/firebaseConfig'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 
-const WorkoutCard = () => {
-  const scorecardUrl = 'https://games.crossfit.com/workouts/open/2025'
-  const workoutName = '25.1'
+const WorkoutCard = ({ workout }) => {
   const [scoreSubmitted, setScoreSubmitted] = useState(false)
   const navigate = useNavigate()
 
-  // Check if a score already exists for this user and workout '25.1'
+  // Check if a score already exists for this user and the given workout
   useEffect(() => {
     const checkScore = async () => {
       if (!auth.currentUser) return
@@ -23,7 +22,7 @@ const WorkoutCard = () => {
       const q = query(
         scoresRef,
         where('userId', '==', auth.currentUser.uid),
-        where('workoutName', '==', workoutName)
+        where('workoutName', '==', workout.name)
       )
       const querySnapshot = await getDocs(q)
       setScoreSubmitted(!querySnapshot.empty)
@@ -31,43 +30,40 @@ const WorkoutCard = () => {
     if (auth.currentUser) {
       checkScore()
     }
-  }, [workoutName])
+  }, [workout.name])
 
   const handleScoreClick = () => {
-    navigate('/scoreentry', { state: { workoutName } })
+    navigate('/scoreentry', { state: { workoutName: workout.name } })
   }
 
   return (
-    <ThemedView
-      styleType="default"
-      className="rounded shadow-lg bg-gray-100 p-4 cursor-pointer hover:shadow-xl transition-shadow"
-    >
-      <ThemedText
-        as="h2"
-        styleType="primary"
-        className="text-xl font-bold mb-2"
-      >
-        CFG25 Open 25.1
+    <ThemedView className="rounded shadow-lg bg-gray-100 p-4 cursor-pointer hover:shadow-xl transition-shadow">
+      <ThemedText as="h2" className="text-xl font-bold mb-2">
+        {workout.title}
       </ThemedText>
-      <ThemedText as="p" styleType="default" className="mb-2">
-        As many rounds and reps as possible in 15 minutes of:
+      <ThemedText as="p" className="mb-2">
+        {workout.description}
       </ThemedText>
-      <ul className="list-disc list-inside mb-2">
-        <li>3 lateral burpees over the dumbbell</li>
-        <li>3 dumbbell hang clean-to-overheads</li>
-        <li>30-foot walking lunge (2 x 15 feet)</li>
-      </ul>
-      <ThemedText as="p" styleType="default" className="mb-2">
-        <strong>Progression:</strong> After each round, add 3 reps to the
-        burpees and hang clean-to-overheads.
-      </ThemedText>
-      <ThemedText as="p" styleType="default" className="mb-4">
-        <strong>Dumbbell Weights:</strong> Women: 35-lb (15-kg), Men: 50-lb
-        (22.5-kg)
-      </ThemedText>
+      {workout.details && workout.details.length > 0 && (
+        <ul className="list-disc list-inside mb-2">
+          {workout.details.map((item, index) => (
+            <li key={index}>{item}</li>
+          ))}
+        </ul>
+      )}
+      {workout.progression && (
+        <ThemedText as="p" className="mb-2">
+          <strong>Progression:</strong> {workout.progression}
+        </ThemedText>
+      )}
+      {workout.weights && (
+        <ThemedText as="p" className="mb-2">
+          <strong>Weights:</strong> {workout.weights}
+        </ThemedText>
+      )}
       <ThemedButton
         styleType="primary"
-        onClick={() => window.open(scorecardUrl, '_blank')}
+        onClick={() => window.open(workout.scorecardUrl, '_blank')}
         className="w-full mb-4"
       >
         View Official Workout

@@ -1,3 +1,4 @@
+// src/pages/ScoreEntry.jsx
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
@@ -16,52 +17,57 @@ import {
   query,
   where,
   getDocs,
-  getDoc,
 } from 'firebase/firestore'
+import { computeRoundsAndReps25_1 } from '@/utils/score25_1'
 
-// check on leaderboard variable handling
+import ErrorBoundary from '@/components/ErrorBoundary'
 
-// Function to compute rounds and extra reps for 25.1
-const computeRoundsAndReps25_1 = totalReps => {
-  const N = Math.floor((-5 + Math.sqrt(25 + 12 * totalReps)) / 6)
-  const completedReps = N * (3 * N + 5)
-  const extraReps = totalReps - completedReps
-  return { rounds: N, extraReps }
+// Helper: Format seconds into MM:SS with two-digit minute and second.
+const formatTime = seconds => {
+  const s = Number(seconds)
+  if (isNaN(s) || s < 0) return ''
+  const mins = Math.floor(s / 60)
+  const secs = s % 60
+  // Ensure two digits for both minutes and seconds.
+  const minsStr = mins.toString().padStart(2, '0')
+  const secsStr = secs.toString().padStart(2, '0')
+  return `${minsStr}:${secsStr}`
 }
 
-const ScoreEntry = () => {
+// Helper: Combine minutes and seconds (as strings/numbers) into total seconds.
+const combineTime = (min, sec) => {
+  const minutes = Number(min) || 0
+  const seconds = Number(sec) || 0
+  return minutes * 60 + seconds
+}
+
+const ScoreEntryContent = () => {
+  const navigate = useNavigate()
   const location = useLocation()
-  const { workoutName } = location.state || { workoutName: 'Default Workout' }
-  const [scaling, setScaling] = useState('RX')
-  const [reps, setReps] = useState('')
-  const [roundsAndReps, setRoundsAndReps] = useState(null) // State for 25.1 breakdown
-  const [error, setError] = useState('')
+  const workoutName = location.state?.workoutName || '25.1'
+
+  // States for editing and score management.
   const [submittedScore, setSubmittedScore] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
   const [scoreDocId, setScoreDocId] = useState(null)
-  const [userDetails, setUserDetails] = useState(null)
-  const navigate = useNavigate()
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
 
-  // Fetch current user's details from Firestore.
-  useEffect(() => {
-    const fetchUserDetails = async () => {
-      if (!auth.currentUser) return
-      try {
-        const userRef = doc(firestore, 'users', auth.currentUser.uid)
-        const userSnap = await getDoc(userRef)
-        if (userSnap.exists()) {
-          setUserDetails(userSnap.data())
-        } else {
-          setUserDetails(null)
-        }
-      } catch (err) {
-        console.error('Error fetching user details:', err)
-      }
-    }
-    fetchUserDetails()
-  }, [])
+  // formData holds our input values.
+  // For 25.1: totalReps.
+  // For 25.2: didFinish (boolean), finishMinutes, finishSeconds, tiebreakMinutes, tiebreakSeconds, and nonCompleteReps.
+  const [formData, setFormData] = useState({
+    scaling: 'RX',
+    totalReps: '', // For 25.1 (or if not completed 25.2)
+    didFinish: false, // Only for 25.2
+    finishMinutes: '',
+    finishSeconds: '',
+    tiebreakMinutes: '',
+    tiebreakSeconds: '',
+    nonCompleteReps: '',
+  })
 
-  // Fetch any existing score for the current user and workout.
+  // Fetch existing score (if any) for the current user & workout.
   useEffect(() => {
     const fetchScore = async () => {
       if (!auth.currentUser) return
@@ -77,67 +83,113 @@ const ScoreEntry = () => {
         setScoreDocId(docSnap.id)
         const data = docSnap.data()
         setSubmittedScore(data)
-        setScaling(data.scaling || 'RX')
-        setReps(data.reps?.toString() || '') // Ensure reps is a string for input
+        // Populate formData with existing score values.
+        setFormData(prev => ({
+          ...prev,
+          scaling: data.scaling || 'RX',
+          totalReps: data.totalReps ? data.totalReps.toString() : '',
+          // For 25.2: if finishTime exists, consider it completed.
+          didFinish: data.finishTime ? true : false,
+          finishMinutes: data.finishTime
+            ? Math.floor(data.finishTime / 60)
+                .toString()
+                .padStart(2, '0')
+            : '',
+          finishSeconds: data.finishTime
+            ? (data.finishTime % 60).toString().padStart(2, '0')
+            : '',
+          tiebreakMinutes: data.tiebreakTime
+            ? Math.floor(data.tiebreakTime / 60)
+                .toString()
+                .padStart(2, '0')
+            : '',
+          tiebreakSeconds: data.tiebreakTime
+            ? (data.tiebreakTime % 60).toString().padStart(2, '0')
+            : '',
+          nonCompleteReps: data.totalReps ? data.totalReps.toString() : '',
+        }))
         setIsEditing(false)
-        // Calculate rounds and reps for 25.1 if applicable
-        if (workoutName === '25.1' && data.reps) {
-          const repsNumber = Number(data.reps)
-          if (!isNaN(repsNumber) && repsNumber >= 0) {
-            const { rounds, extraReps } = computeRoundsAndReps25_1(repsNumber)
-            setRoundsAndReps({ rounds, extraReps })
-          } else {
-            setRoundsAndReps(null)
-          }
-        } else {
-          setRoundsAndReps(null)
-        }
       } else {
-        setRoundsAndReps(null) // Reset if no score exists
+        setSubmittedScore(null)
       }
     }
     fetchScore()
   }, [workoutName])
 
-  // Update rounds and reps dynamically as reps change (only for 25.1)
-  useEffect(() => {
-    if (workoutName === '25.1' && reps) {
-      const repsNumber = Number(reps)
-      if (!isNaN(repsNumber) && repsNumber >= 0) {
-        const { rounds, extraReps } = computeRoundsAndReps25_1(repsNumber)
-        setRoundsAndReps({ rounds, extraReps })
-      } else {
-        setRoundsAndReps(null)
-      }
-    } else {
-      setRoundsAndReps(null)
-    }
-  }, [reps, workoutName])
-
   const handleSubmit = async e => {
     e.preventDefault()
-
-    // Ensure userDetails is loaded.
-    if (!userDetails) {
-      setError('User details not loaded. Please try again.')
-      return
-    }
-
-    const repsNumber = Number(reps)
-    if (isNaN(repsNumber)) {
-      setError('Please enter a valid number for reps.')
-      return
-    }
-
-    const scoreData = {
-      workoutName,
-      scaling,
-      completed: true,
-      reps: repsNumber,
-      userId: auth.currentUser?.uid,
-      displayName: userDetails.displayName,
-      sex: userDetails.sex,
-      createdAt: serverTimestamp(),
+    setError('')
+    let scoreData = {}
+    if (workoutName === '25.1') {
+      const totalReps = Number(formData.totalReps) || 0
+      if (isNaN(totalReps)) {
+        setError('Please enter a valid number for reps.')
+        return
+      }
+      const { rounds, extraReps } = computeRoundsAndReps25_1(totalReps)
+      scoreData = {
+        workoutName,
+        totalReps,
+        rounds,
+        extraReps,
+        scaling: formData.scaling || 'RX',
+        completed: true,
+        createdAt: serverTimestamp(),
+        userId: auth.currentUser?.uid,
+      }
+    } else if (workoutName === '25.2') {
+      if (formData.didFinish) {
+        // If workout completed, require finish time and tiebreak time.
+        if (!formData.finishMinutes || !formData.finishSeconds) {
+          setError('Please enter your finish time in minutes and seconds.')
+          return
+        }
+        if (!formData.tiebreakMinutes || !formData.tiebreakSeconds) {
+          setError('Please enter your tiebreak time in minutes and seconds.')
+          return
+        }
+        const finishTime = combineTime(
+          formData.finishMinutes,
+          formData.finishSeconds
+        )
+        const tiebreakTime = combineTime(
+          formData.tiebreakMinutes,
+          formData.tiebreakSeconds
+        )
+        scoreData = {
+          workoutName,
+          finishTime,
+          tiebreakTime,
+          scaling: formData.scaling || 'RX',
+          completed: true,
+          createdAt: serverTimestamp(),
+          userId: auth.currentUser?.uid,
+        }
+      } else {
+        // If not completed, require total reps and tiebreak time.
+        const totalReps = Number(formData.nonCompleteReps) || 0
+        if (isNaN(totalReps)) {
+          setError('Please enter a valid number for total reps.')
+          return
+        }
+        if (!formData.tiebreakMinutes || !formData.tiebreakSeconds) {
+          setError('Please enter your tiebreak time in minutes and seconds.')
+          return
+        }
+        const tiebreakTime = combineTime(
+          formData.tiebreakMinutes,
+          formData.tiebreakSeconds
+        )
+        scoreData = {
+          workoutName,
+          totalReps,
+          tiebreakTime,
+          scaling: formData.scaling || 'RX',
+          completed: false,
+          createdAt: serverTimestamp(),
+          userId: auth.currentUser?.uid,
+        }
+      }
     }
 
     try {
@@ -146,19 +198,18 @@ const ScoreEntry = () => {
         await updateDoc(scoreDocRef, scoreData)
         setSubmittedScore({ ...submittedScore, ...scoreData })
         setIsEditing(false)
+        setMessage('Score updated successfully!')
       } else if (!submittedScore) {
         const docRef = await addDoc(collection(firestore, 'scores'), scoreData)
         setScoreDocId(docRef.id)
         setSubmittedScore(scoreData)
-        // Mark the user as on the leaderboard.
-        const userRef = doc(firestore, 'users', auth.currentUser.uid)
-        await updateDoc(userRef, { onLeaderBoard: true })
+        setMessage('Score submitted successfully!')
       }
       navigate('/home', { replace: true })
       window.location.reload()
     } catch (err) {
       console.error('Error saving score:', err)
-      setError('Failed to save score. Please try again.')
+      setError('Error submitting score. Please try again.')
     }
   }
 
@@ -171,39 +222,61 @@ const ScoreEntry = () => {
     try {
       const scoreDocRef = doc(firestore, 'scores', scoreDocId)
       await deleteDoc(scoreDocRef)
-      const userRef = doc(firestore, 'users', auth.currentUser.uid)
-      await updateDoc(userRef, { onLeaderBoard: false })
       setSubmittedScore(null)
       setScoreDocId(null)
-      navigate('/home')
+      setMessage('Score deleted successfully.')
+      navigate('/home', { replace: true })
+      window.location.reload()
     } catch (err) {
       console.error('Error deleting score:', err)
       setError('Failed to delete score. Please try again.')
     }
   }
 
-  return (
-    <ThemedView styleType="default" className="min-h-screen p-4">
-      <ThemedText
-        as="h1"
-        styleType="primary"
-        className="text-3xl font-bold mb-4"
-      >
-        Enter Your Score for {workoutName}
-      </ThemedText>
-      {submittedScore && !isEditing ? (
+  // If a score already exists and we are not editing, show the current score with options.
+  if (submittedScore && !isEditing) {
+    return (
+      <ThemedView className="p-4">
+        <ThemedText as="h1" className="text-3xl font-bold mb-4">
+          Your Score for {workoutName}
+        </ThemedText>
         <div className="space-y-4">
           <ThemedText as="p" styleType="default">
             <strong>Scaling:</strong> {submittedScore.scaling}
           </ThemedText>
-          <ThemedText as="p" styleType="default">
-            <strong>Total Reps:</strong> {submittedScore.reps}
-          </ThemedText>
-          {workoutName === '25.1' && submittedScore.reps && roundsAndReps && (
-            <ThemedText as="p" styleType="default">
-              <strong>Rounds + Reps:</strong>{' '}
-              {`${roundsAndReps.rounds} rounds + ${roundsAndReps.extraReps} reps`}
-            </ThemedText>
+          {workoutName === '25.1' && (
+            <>
+              <ThemedText as="p" styleType="default">
+                <strong>Total Reps:</strong> {submittedScore.totalReps}
+              </ThemedText>
+              <ThemedText as="p" styleType="default">
+                <strong>Rounds + Reps:</strong>{' '}
+                {`${submittedScore.rounds} rounds + ${submittedScore.extraReps} reps`}
+              </ThemedText>
+            </>
+          )}
+          {workoutName === '25.2' && submittedScore.completed && (
+            <>
+              <ThemedText as="p" styleType="default">
+                <strong>Finish Time:</strong>{' '}
+                {formatTime(submittedScore.finishTime)}
+              </ThemedText>
+              <ThemedText as="p" styleType="default">
+                <strong>Tiebreak Time:</strong>{' '}
+                {formatTime(submittedScore.tiebreakTime)}
+              </ThemedText>
+            </>
+          )}
+          {workoutName === '25.2' && !submittedScore.completed && (
+            <>
+              <ThemedText as="p" styleType="default">
+                <strong>Total Reps:</strong> {submittedScore.totalReps}
+              </ThemedText>
+              <ThemedText as="p" styleType="default">
+                <strong>Tiebreak Time:</strong>{' '}
+                {formatTime(submittedScore.tiebreakTime)}
+              </ThemedText>
+            </>
           )}
           <div className="flex space-x-4">
             <ThemedButton
@@ -222,22 +295,18 @@ const ScoreEntry = () => {
             </ThemedButton>
           </div>
         </div>
-      ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <ThemedText as="label" styleType="secondary" className="block mb-1">
-              Select Scaling:
-            </ThemedText>
-            <select
-              value={scaling}
-              onChange={e => setScaling(e.target.value)}
-              className="p-2 border border-gray-300 rounded w-full"
-            >
-              <option value="RX">RX</option>
-              <option value="Scaled">Scaled</option>
-              <option value="Foundations">Foundations</option>
-            </select>
-          </div>
+      </ThemedView>
+    )
+  }
+
+  // Render the form for entering/updating a score.
+  return (
+    <ThemedView className="p-4">
+      <ThemedText as="h1" className="text-3xl font-bold mb-4">
+        {submittedScore ? 'Edit' : 'Enter'} Score for {workoutName}
+      </ThemedText>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {workoutName === '25.1' && (
           <div>
             <ThemedText as="label" styleType="secondary" className="block mb-1">
               Enter Total Reps:
@@ -245,32 +314,277 @@ const ScoreEntry = () => {
             <input
               type="number"
               placeholder="e.g. 150"
-              value={reps}
-              onChange={e => setReps(e.target.value)}
+              value={formData.totalReps}
+              onChange={e =>
+                setFormData({ ...formData, totalReps: e.target.value })
+              }
               className="p-2 border border-gray-300 rounded w-full"
             />
-            {workoutName === '25.1' &&
-              reps &&
-              !isNaN(Number(reps)) &&
-              roundsAndReps && (
-                <ThemedText as="p" styleType="default" className="mt-2">
-                  <strong>Rounds + Reps:</strong>{' '}
-                  {`${roundsAndReps.rounds} rounds + ${roundsAndReps.extraReps} reps`}
-                </ThemedText>
-              )}
           </div>
-          {error && (
-            <ThemedText as="p" styleType="danger" className="text-sm">
-              {error}
-            </ThemedText>
-          )}
-          <ThemedButton styleType="primary" type="submit" className="w-full">
-            Save Score
-          </ThemedButton>
-        </form>
-      )}
+        )}
+        {workoutName === '25.2' && (
+          <>
+            <div>
+              <ThemedText
+                as="label"
+                styleType="secondary"
+                className="block mb-1"
+              >
+                Did you complete the workout?
+              </ThemedText>
+              <div className="flex space-x-4">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="didFinish"
+                    value="yes"
+                    checked={formData.didFinish === true}
+                    onChange={() =>
+                      setFormData({ ...formData, didFinish: true })
+                    }
+                    className="mr-2"
+                  />
+                  Yes
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="didFinish"
+                    value="no"
+                    checked={formData.didFinish === false}
+                    onChange={() =>
+                      setFormData({ ...formData, didFinish: false })
+                    }
+                    className="mr-2"
+                  />
+                  No
+                </label>
+              </div>
+            </div>
+            {formData.didFinish ? (
+              <>
+                <div>
+                  <ThemedText
+                    as="label"
+                    styleType="secondary"
+                    className="block mb-1"
+                  >
+                    Enter Finish Time:
+                  </ThemedText>
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      placeholder="MM"
+                      maxLength={2}
+                      value={formData.finishMinutes}
+                      onChange={e =>
+                        setFormData({
+                          ...formData,
+                          finishMinutes: e.target.value,
+                        })
+                      }
+                      className="p-2 border border-gray-300 rounded w-1/3 text-center"
+                    />
+                    <input
+                      type="text"
+                      placeholder="SS"
+                      maxLength={2}
+                      value={formData.finishSeconds}
+                      onChange={e =>
+                        setFormData({
+                          ...formData,
+                          finishSeconds: e.target.value,
+                        })
+                      }
+                      className="p-2 border border-gray-300 rounded w-1/3 text-center"
+                    />
+                  </div>
+                  {formData.finishMinutes && formData.finishSeconds && (
+                    <ThemedText
+                      as="p"
+                      styleType="default"
+                      className="text-sm mt-1"
+                    >
+                      Formatted:{' '}
+                      {formatTime(
+                        combineTime(
+                          formData.finishMinutes,
+                          formData.finishSeconds
+                        )
+                      )}
+                    </ThemedText>
+                  )}
+                </div>
+                <div>
+                  <ThemedText
+                    as="label"
+                    styleType="secondary"
+                    className="block mb-1"
+                  >
+                    Enter Tiebreak Time:
+                  </ThemedText>
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      placeholder="MM"
+                      maxLength={2}
+                      value={formData.tiebreakMinutes}
+                      onChange={e =>
+                        setFormData({
+                          ...formData,
+                          tiebreakMinutes: e.target.value,
+                        })
+                      }
+                      className="p-2 border border-gray-300 rounded w-1/3 text-center"
+                    />
+                    <input
+                      type="text"
+                      placeholder="SS"
+                      maxLength={2}
+                      value={formData.tiebreakSeconds}
+                      onChange={e =>
+                        setFormData({
+                          ...formData,
+                          tiebreakSeconds: e.target.value,
+                        })
+                      }
+                      className="p-2 border border-gray-300 rounded w-1/3 text-center"
+                    />
+                  </div>
+                  {formData.tiebreakMinutes && formData.tiebreakSeconds && (
+                    <ThemedText
+                      as="p"
+                      styleType="default"
+                      className="text-sm mt-1"
+                    >
+                      Formatted:{' '}
+                      {formatTime(
+                        combineTime(
+                          formData.tiebreakMinutes,
+                          formData.tiebreakSeconds
+                        )
+                      )}
+                    </ThemedText>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <ThemedText
+                    as="label"
+                    styleType="secondary"
+                    className="block mb-1"
+                  >
+                    Enter Total Reps Completed:
+                  </ThemedText>
+                  <input
+                    type="number"
+                    placeholder="e.g. 150"
+                    value={formData.nonCompleteReps}
+                    onChange={e =>
+                      setFormData({
+                        ...formData,
+                        nonCompleteReps: e.target.value,
+                      })
+                    }
+                    className="p-2 border border-gray-300 rounded w-full"
+                  />
+                </div>
+                <div>
+                  <ThemedText
+                    as="label"
+                    styleType="secondary"
+                    className="block mb-1"
+                  >
+                    Enter Tiebreak Time:
+                  </ThemedText>
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      placeholder="MM"
+                      maxLength={2}
+                      value={formData.tiebreakMinutes}
+                      onChange={e =>
+                        setFormData({
+                          ...formData,
+                          tiebreakMinutes: e.target.value,
+                        })
+                      }
+                      className="p-2 border border-gray-300 rounded w-1/3 text-center"
+                    />
+                    <input
+                      type="text"
+                      placeholder="SS"
+                      maxLength={2}
+                      value={formData.tiebreakSeconds}
+                      onChange={e =>
+                        setFormData({
+                          ...formData,
+                          tiebreakSeconds: e.target.value,
+                        })
+                      }
+                      className="p-2 border border-gray-300 rounded w-1/3 text-center"
+                    />
+                  </div>
+                  {formData.tiebreakMinutes && formData.tiebreakSeconds && (
+                    <ThemedText
+                      as="p"
+                      styleType="default"
+                      className="text-sm mt-1"
+                    >
+                      Formatted:{' '}
+                      {formatTime(
+                        combineTime(
+                          formData.tiebreakMinutes,
+                          formData.tiebreakSeconds
+                        )
+                      )}
+                    </ThemedText>
+                  )}
+                </div>
+              </>
+            )}
+          </>
+        )}
+        <div>
+          <ThemedText as="label" styleType="secondary" className="block mb-1">
+            Select Scaling:
+          </ThemedText>
+          <select
+            value={formData.scaling || 'RX'}
+            onChange={e =>
+              setFormData({ ...formData, scaling: e.target.value })
+            }
+            className="p-2 border border-gray-300 rounded w-full"
+          >
+            <option value="RX">RX</option>
+            <option value="Scaled">Scaled</option>
+            <option value="Foundations">Foundations</option>
+          </select>
+        </div>
+        {error && (
+          <ThemedText as="p" styleType="danger" className="text-sm">
+            {error}
+          </ThemedText>
+        )}
+        {message && (
+          <ThemedText as="p" styleType="danger" className="text-sm">
+            {message}
+          </ThemedText>
+        )}
+        <ThemedButton styleType="primary" type="submit" className="w-full">
+          {submittedScore ? 'Update Score' : 'Submit Score'}
+        </ThemedButton>
+      </form>
     </ThemedView>
   )
 }
+
+const ScoreEntry = () => (
+  <ErrorBoundary>
+    <ScoreEntryContent />
+  </ErrorBoundary>
+)
 
 export default ScoreEntry
